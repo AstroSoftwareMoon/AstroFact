@@ -31,14 +31,14 @@
 ```
 astrofact/
 ├─ apps/
-│  ├─ client/            Tauri 2 (Windows, macOS, Linux, Android; iOS preparado)
+│  ├─ client/        ✅  Tauri 2 + React (Windows, macOS, Linux, Android; iOS preparado)
 │  │  ├─ src/            React + TS + Tailwind (pantallas)
 │  │  └─ src-tauri/      Rust: SQLite, almacén de certificados del SO, cliente mTLS AEAT, updater
 │  ├─ server/            Fastify + Zod + migraciones; Dockerfile multi-arch
 │  └─ web/               PWA (mismo front que client, con RemoteAdapter)
 ├─ packages/
 │  ├─ fiscal-core/   ✅  registros, huella, cadena, QR, firma XAdES, SOAP, validaciones
-│  ├─ db/                esquema, migraciones versionadas, LocalAdapter / RemoteAdapter
+│  ├─ db/            ✅  esquema, migraciones, triggers de inmutabilidad, AstroFactStore
 │  ├─ pdf/               plantillas de factura (QR posicionado según spec)
 │  ├─ facturae/          exportación Facturae 3.2.x (desactivado por defecto)
 │  └─ ui/                componentes "liquid glass" (tema AstroTune), iconos
@@ -51,7 +51,7 @@ astrofact/
 ## Capa de datos
 
 `DataAdapter` (interfaz única) con dos implementaciones:
-- **LocalAdapter**: SQLite embebido (vía Tauri/Rust; `sqlite-wasm` + OPFS en la PWA local). Cifrado opcional (SQLCipher) con clave derivada por Argon2id de la contraseña del usuario.
+- **Local (implementado, fase 2)**: SQLite compilado a WebAssembly (`sql.js`) dentro del WebView de Tauri o del navegador; la base de datos se persiste como bytes en el almacenamiento de la propia app (IndexedDB del WebView, que en Tauri vive en el directorio de datos de la aplicación). Cifrado opcional del fichero completo con AES-256-GCM y clave derivada con PBKDF2-SHA-256 (600.000 iteraciones). Mismo `AstroFactStore` (`packages/db`) que usará el servidor con `node:sqlite`/PostgreSQL.
 - **RemoteAdapter**: cliente HTTP del servidor propio (Zod comparte los esquemas).
 
 La **emisión** es una transacción atómica: reservar número de serie → construir registro (fiscal-core) → comprobar `comprobarAntesDeGenerar` → firmar (No VERI*FACTU) → insertar factura + registro + evento → encolar envío (VERI*FACTU). Si cualquier paso falla, no se consume número.

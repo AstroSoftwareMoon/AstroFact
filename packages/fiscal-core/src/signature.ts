@@ -159,13 +159,14 @@ export async function verificarFirmaXml(xml: string): Promise<ResultadoVerificac
 }
 
 /** Genera un certificado autofirmado SOLO PARA PRUEBAS (nunca para uso real). */
-export function generarPkcs12Prueba(opts: { nif: string; nombre: string; password: string; bits?: number; dias?: number }): Uint8Array {
+export function generarPkcs12Prueba(opts: { nif: string; nombre: string; password: string; bits?: number; dias?: number; ahora?: Date }): Uint8Array {
+  const t0 = (opts.ahora ?? new Date()).getTime();
   const keys = forge.pki.rsa.generateKeyPair({ bits: opts.bits ?? 2048, e: 0x10001 });
   const cert = forge.pki.createCertificate();
   cert.publicKey = keys.publicKey;
   cert.serialNumber = "01" + forge.util.bytesToHex(forge.random.getBytesSync(8));
-  cert.validity.notBefore = new Date(Date.now() - 86400_000);
-  cert.validity.notAfter = new Date(Date.now() + (opts.dias ?? 365) * 86400_000);
+  cert.validity.notBefore = new Date(t0 - 86400_000);
+  cert.validity.notAfter = new Date(t0 + (opts.dias ?? 365) * 86400_000);
   const attrs = [{ name: "commonName", value: `${opts.nombre} - ${opts.nif} (PRUEBAS)` }, { name: "countryName", value: "ES" }, { type: "2.5.4.5", value: `IDCES-${opts.nif}` }];
   cert.setSubject(attrs as any); cert.setIssuer(attrs as any);
   cert.sign(keys.privateKey, forge.md.sha256.create());

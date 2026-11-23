@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Tokens AstroTune ===== */
+:root {
+  --bg: 7 8 13; --fg: 244 246 252; --muted: 160 168 190; --glass: 255 255 255; --line: 255 255 255;
+  --accent: 124 116 255; --accent2: 0 209 255; --ok: 46 213 115; --warn: 255 176 32; --bad: 255 84 98;
+  --glass-a: .07; --glass-b: .025; --line-a: .12; --blur: 22px;
+  color-scheme: dark;
+}
+:root.light {
+  --bg: 240 242 248; --fg: 16 18 28; --muted: 92 98 120; --glass: 255 255 255; --line: 15 20 40;
+  --glass-a: .72; --glass-b: .5; --line-a: .1;
+  color-scheme: light;
+}
+html, body, #root { height: 100%; }
+body {
+  @apply bg-bg text-fg font-sans antialiased;
+  background:
+    radial-gradient(900px 600px at 10% -10%, rgb(var(--accent) / .28), transparent 60%),
+    radial-gradient(700px 500px at 95% 10%, rgb(var(--accent2) / .16), transparent 60%),
+    radial-gradient(800px 600px at 70% 110%, rgb(177 77 255 / .18), transparent 60%),
+    rgb(var(--bg));
+  background-attachment: fixed;
+}
+::selection { background: rgb(var(--accent) / .35); }
+
+@layer components {
+  .glass {
+    background: linear-gradient(135deg, rgb(var(--glass) / var(--glass-a)), rgb(var(--glass) / var(--glass-b)));
+    border: 1px solid rgb(var(--line) / var(--line-a));
+    backdrop-filter: blur(var(--blur)) saturate(160%);
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
+    @apply shadow-glass rounded-3xl;
+  }
+  .btn { @apply whitespace-nowrap inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-10 text-sm font-medium transition-all duration-200 select-none disabled:opacity-40 disabled:pointer-events-none active:scale-[.98]; }
+  .btn-primary { @apply btn text-white; background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent2) / .9)); box-shadow: 0 8px 24px -8px rgb(var(--accent) / .7), inset 0 1px 0 rgb(255 255 255 / .3); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-ghost { @apply btn text-fg/90 hover:bg-glass/10 border border-line/10; }
+  .btn-danger { @apply btn text-white bg-bad/80 hover:bg-bad; }
+  .input { @apply w-full h-10 rounded-xl px-3 text-sm bg-glass/[.06] border border-line/15 text-fg placeholder:text-muted/70 outline-none transition focus:border-accent/70 focus:ring-4 focus:ring-accent/15; }
+  .input-sm { @apply input h-9; }
+  select.input { @apply pr-8; }
+  .label { @apply block text-xs font-medium text-muted mb-1.5; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs border; }
+  .fila { @apply border-t border-line/10 hover:bg-glass/[.04] transition-colors; }
+  .kbd { @apply font-mono text-[11px] px-1.5 py-0.5 rounded-md border border-line/20 bg-glass/5; }
+}
+
+/* Impresión: solo el documento de la factura, en blanco */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  body { background: #fff !important; }
+  body * { visibility: hidden !important; }
+  .printable, .printable * { visibility: visible !important; }
+  .printable { position: absolute; inset: 0; }
+}

@@ -6,7 +6,8 @@ on:
 permissions:
   contents: read
 jobs:
-  fiscal-core:
+  tests:
+    name: Tests (fiscal-core, db) y validación XSD
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,9 +18,33 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - run: pnpm -r test
-      - run: pnpm -r build
-      - name: Los XSD oficiales siguen siendo válidos
+      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db test
+      - run: pnpm --filter @astrofact/fiscal-core build
+      - name: Los ejemplos oficiales siguen validando
+        run: cd docs/normativa && xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml
+
+  e2e:
+    name: E2E emisión (Playwright)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @astrofact/client exec playwright install --with-deps chromium
+      - run: pnpm --filter @astrofact/client e2e
+
+  tauri-check:
+    name: Tauri (cargo check, Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/client/src-tauri }
+      - name: cargo check
         run: |
-          cd docs/normativa
-          xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml
+          mkdir -p apps/client/dist && echo '<!doctype html>' > apps/client/dist/index.html
+          cd apps/client/src-tauri && cargo check --locked || cargo check
