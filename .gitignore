@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+.env
+.env.*
+*.p12
+*.pfx
+!packages/fiscal-core/test/fixtures/*.p12
+target/
+.turbo/

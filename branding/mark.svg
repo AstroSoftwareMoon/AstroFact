@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="2 2 60 60">
+  <title>AstroFact</title>
+  <defs>
+    <mask id="af-cut">
+      <rect x="0" y="0" width="64" height="64" fill="#fff"/>
+      <circle cx="40" cy="23" r="17.5" fill="#000"/>
+      <path d="M26.5 34.5 35 43 54 20" fill="none" stroke="#000" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+  <circle cx="29" cy="34" r="25" fill="currentColor" mask="url(#af-cut)"/>
+  <path d="M26.5 34.5 35 43 54 20" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
