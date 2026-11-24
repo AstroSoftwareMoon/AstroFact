@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AlertTriangle, FilePlus2, FileText, Home, KeyRound, Link2, Package, Settings, Users } from "lucide-react";
 import { useApp } from "../state/app";
 import { Logo, Modal, Campo } from "../ui/kit";
+import { useAvisoActualizacion } from "./Actualizaciones";
 
 export default function Layout() {
   const app = useApp();
@@ -13,6 +14,7 @@ export default function Layout() {
   const certOk = store.certificadoDesbloqueado(o.id);
   const cert = store.certificado(o.id);
   const [desb, setDesb] = useState(false);
+  useAvisoActualizacion();
   const items = [
     { to: "/", icon: Home, label: t("nav.panel"), end: true },
     { to: "/facturas", icon: FileText, label: t("nav.facturas"), end: true },

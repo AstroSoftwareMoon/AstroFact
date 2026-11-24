@@ -1,0 +1,19 @@
+{
+  "name": "@astrofact/server",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "description": "Servidor autohospedado de AstroFact (Fastify). Fase 4: sirve la PWA; fase 5: API multiusuario y envío VERI*FACTU.",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --target node22 --clean",
+    "start": "node dist/index.js",
+    "dev": "tsup src/index.ts --format esm --watch --onSuccess \"node dist/index.js\"",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/static": "^8.2.0",
+    "fastify": "^5.4.0"
+  }
+}

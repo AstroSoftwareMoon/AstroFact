@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
-import { AstroFactStore, crearCifrador, desempaquetarCifrado, estaCifrado, kdfDeContenedor, type Obligado } from "@astrofact/db";
+import { AstroFactStore, PRODUCTOR_POR_DEFECTO, crearCifrador, desempaquetarCifrado, estaCifrado, kdfDeContenedor, type Obligado } from "@astrofact/db";
 import { sqljsDriver, type SqlJsDriver } from "@astrofact/db/sqljs";
 import { cargarBytes, guardarBytes, pref } from "../platform/storage";
 import { textos, type Clave, type Idioma } from "../i18n";
@@ -57,7 +57,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const sql = await cargarSql();
     const d = sqljsDriver(sql, bytes);
     driverRef.current = d;
-    const s = new AstroFactStore(d, { onCambio: programarGuardado });
+    const s = new AstroFactStore(d, { onCambio: programarGuardado, productor: { ...PRODUCTOR_POR_DEFECTO, Version: __APP_VERSION__ } });
     storeRef.current = s;
     const o = s.obligado();
     if (!o) { setFase("bienvenida"); return; }

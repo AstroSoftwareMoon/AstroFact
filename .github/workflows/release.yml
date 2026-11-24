@@ -1,0 +1,270 @@
+# Publicación de una versión al crear una etiqueta v* (p. ej. `node scripts/version.mjs 0.4.0 && git tag v0.4.0 && git push --follow-tags`).
+# Funciona SIN secretos (binarios sin firmar). Secretos opcionales (ver docs/RELEASES.md):
+#   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD + variable TAURI_UPDATER_PUBKEY → autoactualización firmada
+#   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID → macOS firmado y notarizado
+#   ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD → APK/AAB con firma estable
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag: { description: "Etiqueta existente a (re)publicar, p. ej. v0.4.0", required: true }
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  preparar:
+    name: Preparar borrador y changelog
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      release_id: ${{ steps.rel.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0, ref: "${{ env.TAG }}" }
+      - id: v
+        name: Comprobar versión
+        run: |
+          V="${TAG#v}"
+          FILE_V=$(node -p "require('./apps/client/src-tauri/tauri.conf.json').version")
+          if [ "$V" != "$FILE_V" ]; then echo "::error::La etiqueta ($V) no coincide con tauri.conf.json ($FILE_V). Usa scripts/version.mjs."; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+      - name: Changelog
+        run: node scripts/changelog.mjs "$TAG" > notas.md && cat notas.md
+      - id: rel
+        name: Crear borrador
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          PRE=""; case "$TAG" in *-*) PRE="--prerelease";; esac
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --draft $PRE --title "AstroFact $TAG" --notes-file notas.md --verify-tag
+          echo "id=$(gh release view "$TAG" --json databaseId -q .databaseId)" >> "$GITHUB_OUTPUT"
+
+  escritorio:
+    name: Escritorio (${{ matrix.nombre }})
+    needs: preparar
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { nombre: Linux, os: ubuntu-22.04, args: "--bundles deb,rpm,appimage", rust_targets: "" }
+          - { nombre: Windows, os: windows-latest, args: "--bundles msi,nsis", rust_targets: "" }
+          - { nombre: macOS universal, os: macos-latest, args: "--target universal-apple-darwin", rust_targets: "aarch64-apple-darwin,x86_64-apple-darwin" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.TAG }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "${{ matrix.rust_targets }}" }
+      - uses: Swatinem/rust-cache@v2
+        with: { workspaces: apps/client/src-tauri }
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libsoup-3.0-dev librsvg2-dev libayatana-appindicator3-dev patchelf rpm
+      - run: pnpm install --frozen-lockfile
+      - name: Configurar actualizador y firmas opcionales
+        shell: bash
+        env:
+          PUBKEY: ${{ vars.TAURI_UPDATER_PUBKEY }}
+          HAS_UPDATER_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          CONF=apps/client/src-tauri/tauri.conf.json
+          if [ "$HAS_UPDATER_KEY" = "true" ] && [ -n "$PUBKEY" ]; then
+            node -e "const f='$CONF',c=require('./'+f);c.plugins.updater.pubkey=process.env.PUBKEY;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+            { echo "VITE_ACTUALIZADOR=1"; echo "TAURI_SIGNING_PRIVATE_KEY=$TAURI_SIGNING_PRIVATE_KEY"; echo "TAURI_SIGNING_PRIVATE_KEY_PASSWORD=$TAURI_SIGNING_PRIVATE_KEY_PASSWORD"; } >> "$GITHUB_ENV"
+            echo "UPDATER_JSON=true" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Sin clave de firma del actualizador: se publica sin autoactualización."
+            node -e "const f='$CONF',c=require('./'+f);c.bundle.createUpdaterArtifacts=false;require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+            echo "UPDATER_JSON=false" >> "$GITHUB_ENV"
+          fi
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            if [ -n "$APPLE_CERTIFICATE" ]; then
+              for k in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do echo "$k=${!k}" >> "$GITHUB_ENV"; done
+            else
+              echo "::warning::macOS sin firmar: Gatekeeper pedirá confirmación (clic derecho → Abrir)."
+            fi
+          fi
+          if [ "$RUNNER_OS" = "Windows" ]; then echo "::warning::Windows sin firma de código: SmartScreen puede avisar la primera vez."; fi
+      - uses: tauri-apps/tauri-action@v0
+        with:
+          projectPath: apps/client
+          tauriScript: pnpm tauri
+          releaseId: ${{ needs.preparar.outputs.release_id }}
+          includeUpdaterJson: ${{ env.UPDATER_JSON }}
+          updaterJsonPreferNsis: true
+          args: ${{ matrix.args }}
+      - name: Versión portable (Windows)
+        if: runner.os == 'Windows'
+        shell: bash
+        env: { GH_TOKEN: "${{ github.token }}", V: "${{ needs.preparar.outputs.version }}" }
+        run: |
+          mkdir portable && cp apps/client/src-tauri/target/release/astrofact.exe "portable/AstroFact.exe"
+          printf "AstroFact %s portable\r\nRequiere Microsoft Edge WebView2 (incluido en Windows 10/11).\r\nLos datos se guardan en el perfil del usuario.\r\n" "$V" > portable/LEEME.txt
+          7z a "AstroFact_${V}_x64_portable.zip" ./portable/*
+          gh release upload "$TAG" "AstroFact_${V}_x64_portable.zip" --clobber
+
+  android:
+    name: Android (APK + AAB)
+    needs: preparar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.TAG }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: android-actions/setup-android@v3
+      - name: NDK
+        run: |
+          sdkmanager --install "ndk;27.2.12479018" "platforms;android-34" "build-tools;34.0.0"
+          echo "NDK_HOME=$ANDROID_SDK_ROOT/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-linux-android,armv7-linux-androideabi,i686-linux-android,x86_64-linux-android" }
+      - run: pnpm install --frozen-lockfile
+      - name: Generar proyecto Android
+        working-directory: apps/client
+        run: pnpm tauri android init --ci
+      - name: Configurar firma
+        env:
+          KS_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          KS="$RUNNER_TEMP/astrofact.jks"
+          if [ -n "$KS_B64" ]; then
+            echo "$KS_B64" | base64 -d > "$KS"
+          else
+            echo "::warning::Sin ANDROID_KEYSTORE_B64: se firma con una clave efímera. Las futuras versiones no podrán instalarse encima de esta."
+            KS_PASS=$(openssl rand -hex 16); KEY_PASS=$KS_PASS; KEY_ALIAS=astrofact
+            keytool -genkeypair -v -keystore "$KS" -storepass "$KS_PASS" -keypass "$KEY_PASS" -alias "$KEY_ALIAS" -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=AstroFact (efimera), O=AstroFact, C=ES"
+            echo "ANDROID_FIRMA_EFIMERA=1" >> "$GITHUB_ENV"
+          fi
+          printf "storeFile=%s\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n" "$KS" "$KS_PASS" "$KEY_ALIAS" "$KEY_PASS" > apps/client/src-tauri/gen/android/keystore.properties
+          node scripts/android-firma.mjs apps/client/src-tauri/gen/android/app/build.gradle.kts
+      - name: Compilar
+        working-directory: apps/client
+        run: pnpm tauri android build --apk --aab
+      - name: Subir
+        env: { GH_TOKEN: "${{ github.token }}", V: "${{ needs.preparar.outputs.version }}" }
+        run: |
+          OUT=apps/client/src-tauri/gen/android/app/build/outputs
+          cp "$(find $OUT/apk -name '*universal*release*.apk' | head -1)" "AstroFact_${V}_android.apk"
+          cp "$(find $OUT/bundle -name '*universal*release*.aab' | head -1)" "AstroFact_${V}_android.aab"
+          gh release upload "$TAG" "AstroFact_${V}_android.apk" "AstroFact_${V}_android.aab" --clobber
+          if [ "$ANDROID_FIRMA_EFIMERA" = "1" ]; then
+            gh release view "$TAG" --json body -q .body > notas.md
+            printf "\n> ⚠️ El APK de esta versión está firmado con una clave efímera: para actualizar habrá que desinstalar la versión anterior (exporta antes tus registros).\n" >> notas.md
+            gh release edit "$TAG" --notes-file notas.md
+          fi
+
+  docker:
+    name: Imagen Docker (amd64 + arm64)
+    needs: preparar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.TAG }}" }
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with: { registry: ghcr.io, username: "${{ github.actor }}", password: "${{ github.token }}" }
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository_owner }}/astrofact-server
+          tags: |
+            type=semver,pattern={{version}},value=${{ env.TAG }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ env.TAG }}
+            type=raw,value=latest,enable=${{ !contains(env.TAG, '-') }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: VERSION=${{ needs.preparar.outputs.version }}
+          provenance: true
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  pwa:
+    name: PWA
+    needs: preparar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.TAG }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @astrofact/client build:web
+      - name: Subir
+        env: { GH_TOKEN: "${{ github.token }}", V: "${{ needs.preparar.outputs.version }}" }
+        run: |
+          (cd apps/client/dist && zip -qr "$GITHUB_WORKSPACE/AstroFact_${V}_pwa.zip" .)
+          gh release upload "$TAG" "AstroFact_${V}_pwa.zip" --clobber
+      - uses: actions/upload-pages-artifact@v3
+        if: vars.PUBLICAR_PWA == 'true'
+        with: { path: apps/client/dist }
+
+  pwa-pages:
+    name: Publicar PWA en GitHub Pages (opcional)
+    if: vars.PUBLICAR_PWA == 'true'
+    needs: pwa
+    runs-on: ubuntu-latest
+    permissions: { pages: write, id-token: write }
+    environment: { name: github-pages, url: "${{ steps.d.outputs.page_url }}" }
+    steps:
+      - id: d
+        uses: actions/deploy-pages@v4
+
+  finalizar:
+    name: Checksums, nombres estables y publicación
+    needs: [preparar, escritorio, android, docker, pwa]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ env.TAG }}" }
+      - name: Descargar, renombrar y calcular SHA-256
+        env: { GH_TOKEN: "${{ github.token }}", V: "${{ needs.preparar.outputs.version }}" }
+        run: |
+          mkdir dist && cd dist
+          gh release download "$TAG" --pattern "*" --skip-existing
+          cp_if() { f=$(ls $1 2>/dev/null | head -1); [ -n "$f" ] && cp "$f" "$2" && echo "$2"; }
+          ESTABLES=$( { cp_if "*_x64-setup.exe" AstroFact-windows-x64-setup.exe; cp_if "*_x64_es-ES.msi" AstroFact-windows-x64.msi; cp_if "*_x64_portable.zip" AstroFact-windows-x64-portable.zip;
+            cp_if "*_universal.dmg" AstroFact-macos-universal.dmg; cp_if "*_amd64.AppImage" AstroFact-linux-x86_64.AppImage; cp_if "*_amd64.deb" AstroFact-linux-amd64.deb;
+            cp_if "*.x86_64.rpm" AstroFact-linux-x86_64.rpm; cp_if "*_android.apk" AstroFact-android.apk; cp_if "*_android.aab" AstroFact-android.aab; cp_if "*_pwa.zip" AstroFact-pwa.zip; } | tr '\n' ' ')
+          rm -f SHA256SUMS.txt
+          sha256sum -- * | grep -v "latest.json" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          gh release upload "$TAG" $ESTABLES SHA256SUMS.txt --clobber
+      - name: Publicar
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release edit "$TAG" --draft=false

@@ -1,13 +1,25 @@
 {
   "name": "@astrofact/pdf",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Generación de facturas PDF vectoriales de AstroFact con QR tributario según la especificación de la AEAT.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "exports": { ".": "./src/index.ts" },
-  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
-  "dependencies": { "@astrofact/fiscal-core": "workspace:*", "pdf-lib": "^1.17.1" },
-  "devDependencies": { "jsqr": "^1.4.0", "pngjs": "^7.0.0", "@types/pngjs": "^6.0.5" }
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@astrofact/fiscal-core": "workspace:*",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
+    "@types/pngjs": "^6.0.5"
+  }
 }

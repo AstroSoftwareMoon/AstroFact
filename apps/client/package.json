@@ -1,7 +1,7 @@
 {
   "name": "@astrofact/client",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.4.0",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {
@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "echo \"(E2E: pnpm --filter @astrofact/client e2e)\"",
     "e2e": "vite build && node e2e/run.cjs",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:web": "tsc --noEmit && vite build --mode web"
   },
   "dependencies": {
     "@astrofact/db": "workspace:*",
@@ -22,7 +23,9 @@
     "react-router-dom": "^7.6.0",
     "sql.js": "^1.13.0",
     "@astrofact/pdf": "workspace:*",
-    "@tauri-apps/api": "^2.5.0"
+    "@tauri-apps/api": "^2.5.0",
+    "@tauri-apps/plugin-updater": "^2.7.0",
+    "@tauri-apps/plugin-process": "^2.2.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.5.0",
@@ -36,6 +39,7 @@
     "@types/sql.js": "^1.4.9",
     "playwright": "1.63.0",
     "jsqr": "^1.4.0",
-    "pngjs": "^7.0.0"
+    "pngjs": "^7.0.0",
+    "vite-plugin-pwa": "^1.0.0"
   }
 }

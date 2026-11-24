@@ -1,0 +1,36 @@
+# iOS: proyecto preparado. Requiere una cuenta de Apple Developer y estos secretos:
+# APPLE_API_ISSUER, APPLE_API_KEY, APPLE_API_KEY_P8_B64, APPLE_DEVELOPMENT_TEAM. Ejecución manual.
+name: iOS (manual)
+on:
+  workflow_dispatch:
+    inputs:
+      tag: { description: "Etiqueta a compilar", required: true }
+permissions: { contents: write }
+jobs:
+  ios:
+    runs-on: macos-latest
+    if: ${{ vars.IOS_HABILITADO == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ github.event.inputs.tag }}" }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { targets: "aarch64-apple-ios,aarch64-apple-ios-sim" }
+      - run: pnpm install --frozen-lockfile
+      - name: Compilar IPA
+        working-directory: apps/client
+        env:
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_DEVELOPMENT_TEAM: ${{ secrets.APPLE_DEVELOPMENT_TEAM }}
+          APPLE_API_KEY_P8_B64: ${{ secrets.APPLE_API_KEY_P8_B64 }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APPLE_API_KEY_P8_B64" | base64 -d > ~/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8
+          export APPLE_API_KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8
+          pnpm tauri ios init --ci
+          pnpm tauri ios build --export-method app-store-connect
+      - uses: actions/upload-artifact@v4
+        with: { name: astrofact-ios, path: "apps/client/src-tauri/gen/apple/build/**/*.ipa" }

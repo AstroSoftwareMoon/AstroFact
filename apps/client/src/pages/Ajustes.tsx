@@ -5,6 +5,7 @@ import declaracion from "../../../../docs/cumplimiento/declaracion-responsable.m
 import avisoLegal from "../../../../docs/aviso-legal.md?raw";
 import { useApp } from "../state/app";
 import EditorPlantilla from "../components/EditorPlantilla";
+import Actualizaciones from "../components/Actualizaciones";
 import { Campo, Chip, Modal, Panel, Titulo } from "../ui/kit";
 import { fecha } from "../format";
 
@@ -91,6 +92,8 @@ export default function Ajustes() {
             </div>)}
           <p className="text-xs text-muted mt-4">Número de instalación: <span className="font-mono">{store.sistemaInformatico().NumeroInstalacion}</span> · Versión {store.productor.Version}</p>
         </Panel>
+
+        <Actualizaciones />
 
         <div className="lg:col-span-2" id="plantilla"><EditorPlantilla /></div>
 

@@ -81,23 +81,27 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 
 ## ⬇️ Descargas
 
-> Las primeras versiones instalables llegarán en la **fase 4**. Esta tabla se rellenará automáticamente con cada `tag v*`.
+| | Plataforma | Descarga |
+|---|---|---|
+| 🪟 | **Windows** 10/11 (x64) | [Instalador `.exe`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-windows-x64-setup.exe) · [`.msi`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-windows-x64.msi) · [Portable `.zip`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-windows-x64-portable.zip) |
+| 🍎 | **macOS** 10.15+ (Apple Silicon e Intel) | [`.dmg` universal](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-macos-universal.dmg) |
+| 🐧 | **Linux** (x86_64) | [`AppImage`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-linux-x86_64.AppImage) · [`.deb`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-linux-amd64.deb) · [`.rpm`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-linux-x86_64.rpm) |
+| 🤖 | **Android** 7+ | [`.apk`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-android.apk) · [`.aab`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-android.aab) |
+| 🐳 | **Servidor** (amd64 / arm64) | `docker run -p 8080:8080 -v astrofact:/data ghcr.io/astrosoftwaremoon/astrofact-server` |
+| 🌐 | **Web / PWA** | [`pwa.zip`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/AstroFact-pwa.zip) para tu propio servidor estático |
+| 📱 | iOS | Proyecto preparado; requiere cuenta de Apple Developer |
 
-| Plataforma | Formato |
-|---|---|
-| Windows | `.msi` · `.exe` · portable |
-| macOS | `.dmg` universal (Intel + Apple Silicon) |
-| Linux | AppImage · `.deb` · `.rpm` |
-| Android | `.apk` firmado · `.aab` |
-| Servidor | Imagen Docker `amd64` / `arm64` |
-| Web | PWA instalable |
+Todas las versiones, notas y [`SHA256SUMS.txt`](https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/SHA256SUMS.txt) en [Releases](https://github.com/AstroSoftwareMoon/AstroFact/releases).
+Los binarios pueden ir **sin firmar** mientras el proyecto no disponga de certificados: ver [cómo abrirlos y verificarlos](docs/RELEASES.md).
+
+> Las descargas aparecerán con la primera etiqueta `v*`. Cómo publicar: [`docs/RELEASES.md`](docs/RELEASES.md).
 
 ## 🗺️ Estado del proyecto
 
 - [x] **Fase 1 — `fiscal-core`**: registros de alta y anulación, huella, cadena, QR, firma XAdES, eventos, SOAP VERI\*FACTU, validaciones. **116 tests** con vectores oficiales y validación contra los XSD de la AEAT.
 - [x] **Fase 2 — App local**: asistente de bienvenida, clientes (con RGPD), productos, emisión No VERI\*FACTU firmada con QR, anulaciones, rectificativas S/I, registro fiscal navegable, eventos, exportación por periodo, cifrado de datos. Base de datos con triggers de inmutabilidad. **E2E con Playwright.**
 - [x] **Fase 3 — Diseño y PDF**: PDF vectorial propio (pdf-lib) con plantillas Moderna/Clásica/Minimal, logo, color, notas y pie legal; multipágina con el QR solo en la primera; editor con vista previa; tema claro; transiciones; resumen de eventos al cerrar la ventana en Tauri. Tests que **escanean el QR** del PDF y miden su tamaño y posición.
-- [ ] Fase 4 — Empaquetado y releases multiplataforma
+- [x] **Fase 4 — Empaquetado y releases**: workflow por etiqueta `v*` con Windows (.exe/.msi/portable), macOS universal, Linux (AppImage/.deb/.rpm), Android (.apk/.aab), imagen Docker multi-arch, PWA instalable sin conexión, `SHA256SUMS`, changelog automático y autoactualización firmada (opcional, desactivable). iOS preparado.
 - [ ] Fase 5 — Servidor Docker y envío VERI\*FACTU contra el entorno de pruebas
 - [ ] Fase 6 — Informes (303/130 como ayuda), gastos, recordatorios
 - [ ] Fase 7 — Documentación de cumplimiento y pulido

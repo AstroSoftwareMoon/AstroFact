@@ -18,7 +18,8 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils poppler-utils
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db --filter @astrofact/pdf test
+      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db --filter @astrofact/pdf --filter @astrofact/server test
+      - run: pnpm --filter @astrofact/client build:web
       - run: pnpm --filter @astrofact/fiscal-core build
       - name: Los ejemplos oficiales siguen validando
         run: cd docs/normativa && xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml
@@ -49,3 +50,16 @@ jobs:
         run: |
           mkdir -p apps/client/dist && echo '<!doctype html>' > apps/client/dist/index.html
           cd apps/client/src-tauri && cargo check --locked || cargo check
+
+  docker:
+    name: Imagen Docker (build sin publicar)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with: { context: ., file: apps/server/Dockerfile, push: false, load: true, tags: "astrofact-server:ci" }
+      - name: Arranca y responde
+        run: |
+          docker run -d --name af -p 8080:8080 astrofact-server:ci
+          for i in $(seq 1 20); do curl -sf localhost:8080/api/salud && exit 0; sleep 1; done; docker logs af; exit 1

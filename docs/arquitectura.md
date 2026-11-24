@@ -34,18 +34,18 @@ astrofact/
 │  ├─ client/        ✅  Tauri 2 + React (Windows, macOS, Linux, Android; iOS preparado)
 │  │  ├─ src/            React + TS + Tailwind (pantallas)
 │  │  └─ src-tauri/      Rust: SQLite, almacén de certificados del SO, cliente mTLS AEAT, updater
-│  ├─ server/            Fastify + Zod + migraciones; Dockerfile multi-arch
-│  └─ web/               PWA (mismo front que client, con RemoteAdapter)
+│  ├─ server/        ✅  Fastify (fase 4: sirve la PWA; fase 5: API y VERI*FACTU); Dockerfile multi-arch
+│  └─ (web)          PWA = apps/client compilado con `--mode web` (service worker + manifiesto)
 ├─ packages/
 │  ├─ fiscal-core/   ✅  registros, huella, cadena, QR, firma XAdES, SOAP, validaciones
 │  ├─ db/            ✅  esquema, migraciones, triggers de inmutabilidad, AstroFactStore
-│  ├─ pdf/               plantillas de factura (QR posicionado según spec)
+│  ├─ pdf/           ✅  facturas PDF vectoriales con plantillas (QR según la especificación)
 │  ├─ facturae/          exportación Facturae 3.2.x (desactivado por defecto)
 │  └─ ui/                componentes "liquid glass" (tema AstroTune), iconos
 ├─ branding/             logo SVG (negro/blanco), iconos de plataforma
 ├─ docs/             ✅  normativa, requisitos, cumplimiento, arquitectura
 ├─ scripts/          ✅  fetch-normativa.sh
-└─ .github/workflows/    ci.yml ✅, release.yml (fase 4)
+└─ .github/workflows/ ✅ ci.yml, release.yml, ios.yml
 ```
 
 ## Capa de datos

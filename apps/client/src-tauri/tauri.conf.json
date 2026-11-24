@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "AstroFact",
-  "version": "0.2.0",
+  "version": "0.4.0",
   "identifier": "es.astrofact.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -11,7 +11,15 @@
   },
   "app": {
     "windows": [
-      { "title": "AstroFact", "width": 1280, "height": 820, "minWidth": 380, "minHeight": 600, "resizable": true, "theme": "Dark" }
+      {
+        "title": "AstroFact",
+        "width": 1280,
+        "height": 820,
+        "minWidth": 380,
+        "minHeight": 600,
+        "resizable": true,
+        "theme": "Dark"
+      }
     ],
     "security": {
       "csp": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
@@ -24,6 +32,53 @@
     "shortDescription": "Facturación libre VERI*FACTU / No VERI*FACTU",
     "longDescription": "Programa de facturación de código abierto para autónomos y pymes de España. Tus datos se quedan en tu dispositivo. No sustituye a tu asesor fiscal.",
     "copyright": "AGPL-3.0-or-later",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "linux": {
+      "deb": {
+        "section": "office"
+      },
+      "rpm": {
+        "release": "1"
+      }
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Spanish",
+          "English"
+        ]
+      },
+      "wix": {
+        "language": [
+          "es-ES",
+          "en-US"
+        ]
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "android": {
+      "minSdkVersion": 24
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": [
+        "https://github.com/AstroSoftwareMoon/AstroFact/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }
