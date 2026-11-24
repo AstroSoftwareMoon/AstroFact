@@ -32,8 +32,17 @@ body {
     border: 1px solid rgb(var(--line) / var(--line-a));
     backdrop-filter: blur(var(--blur)) saturate(160%);
     -webkit-backdrop-filter: blur(var(--blur)) saturate(160%);
-    @apply shadow-glass rounded-3xl;
+    @apply shadow-glass rounded-3xl relative;
+    isolation: isolate;
   }
+  /* Brillo superior del cristal (liquid glass) */
+  .glass::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1;
+    background: radial-gradient(120% 60% at 20% -10%, rgb(255 255 255 / .14), transparent 55%);
+  }
+  :root.light .glass::before { background: radial-gradient(120% 60% at 20% -10%, rgb(255 255 255 / .8), transparent 55%); }
+  button.glass, a.glass { transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s, opacity .2s; }
+  button.glass:hover, a.glass:hover { transform: translateY(-1px); }
   .btn { @apply whitespace-nowrap inline-flex items-center justify-center gap-2 rounded-2xl px-4 h-10 text-sm font-medium transition-all duration-200 select-none disabled:opacity-40 disabled:pointer-events-none active:scale-[.98]; }
   .btn-primary { @apply btn text-white; background: linear-gradient(135deg, rgb(var(--accent)), rgb(var(--accent2) / .9)); box-shadow: 0 8px 24px -8px rgb(var(--accent) / .7), inset 0 1px 0 rgb(255 255 255 / .3); }
   .btn-primary:hover { filter: brightness(1.08); }
@@ -49,6 +58,8 @@ body {
 }
 
 /* Impresión: solo el documento de la factura, en blanco */
+@media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+
 @media print {
   @page { size: A4; margin: 12mm; }
   body { background: #fff !important; }

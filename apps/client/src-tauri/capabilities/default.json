@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Permisos mínimos: la app no usa red ni sistema de ficheros nativo en la fase 2.",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": ["core:default", "core:window:allow-destroy"]
 }

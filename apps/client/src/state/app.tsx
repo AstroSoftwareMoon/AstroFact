@@ -83,7 +83,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const iv = window.setInterval(() => { void s.tick(id); }, 60_000);
     const alCerrar = () => { if (document.visibilityState === "hidden") { void s.cierre(id).then(guardarAhora); } };
     document.addEventListener("visibilitychange", alCerrar);
-    return () => { window.clearInterval(iv); document.removeEventListener("visibilitychange", alCerrar); };
+    // Tauri: registro resumen de eventos antes de cerrar la aplicación (art. 9.2 Orden HAC/1177/2024)
+    let quitar: (() => void) | undefined;
+    if ("__TAURI_INTERNALS__" in window) {
+      void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().onCloseRequested(async () => { await s.cierre(id); await guardarAhora(); }))
+        .then((un) => { quitar = un; }).catch(() => undefined);
+    }
+    return () => { window.clearInterval(iv); document.removeEventListener("visibilitychange", alCerrar); quitar?.(); };
   }, [fase, guardarAhora]);
 
   const desbloquear = useCallback(async (pass: string) => {

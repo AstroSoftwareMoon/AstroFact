@@ -61,11 +61,34 @@ async function esperarServidor(url, ms = 30000) {
     assert.ok(await page.locator('[data-testid="qr-tributario"] svg').count() === 1, "falta el SVG del QR");
     await shot("app-factura");
 
+    // PDF: descarga y escaneo del QR (si hay poppler)
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("descargar-pdf").click()]);
+    const pdfPath = path.join(require("node:os").tmpdir(), `af-e2e-${Date.now()}.pdf`);
+    await dl.saveAs(pdfPath);
+    assert.match(dl.suggestedFilename(), /^Factura-A-\d{4}-0001\.pdf$/);
+    try {
+      const { execFileSync } = require("node:child_process");
+      execFileSync("pdftoppm", ["-r", "200", "-singlefile", "-png", pdfPath, pdfPath]);
+      const { PNG } = require("pngjs"); const jsQR = require("jsqr");
+      const png = PNG.sync.read(require("node:fs").readFileSync(pdfPath + ".png"));
+      const qr = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
+      assert.match(qr && qr.data, /^https:\/\/prewww2\.aeat\.es\/wlpl\/TIKE-CONT\/ValidarQRNoVerifactu\?nif=89890001K&numserie=A-\d{4}-0001&fecha=\d{2}-\d{2}-\d{4}&importe=762\.30$/);
+      console.log("  ✓ PDF descargado: QR legible →", qr.data);
+    } catch (e) { if (e.code === "ENOENT") console.log("  (pdftoppm no disponible: se omite el escaneo del QR)"); else throw e; }
+
     // Registro fiscal → verificar integridad
     await page.getByRole("link", { name: /Registro fiscal/ }).click();
     await page.getByTestId("verificar-cadena").click();
     await page.getByTestId("cadena-ok").waitFor({ timeout: 30000 });
     await shot("app-registro");
+
+    // Plantilla: cambiar a estilo clásico con otro color y guardar
+    await page.getByRole("link", { name: /Ajustes/ }).first().click();
+    await page.getByTestId("estilo-clasica").click();
+    await page.getByRole("button", { name: "Color #0B7285" }).click();
+    await page.getByRole("button", { name: "Guardar plantilla" }).click();
+    await page.locator("#plantilla").scrollIntoViewIfNeeded();
+    if (CAPTURAS) { await page.addStyleTag({ content: "[aria-live=polite]{display:none!important}" }); await page.waitForTimeout(500); await page.locator("#plantilla").screenshot({ path: path.join(OUT, "app-plantilla.png") }); }
 
     await page.getByRole("link", { name: /Panel/ }).first().click();
     await page.waitForTimeout(300);
@@ -77,6 +100,12 @@ async function esperarServidor(url, ms = 30000) {
       await shot("app-movil-panel");
       await page.goto(`http://localhost:${PORT}/#/facturas/nueva`); await page.waitForTimeout(600);
       await shot("app-movil-nueva");
+      // Tema claro
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.evaluate(() => { localStorage.setItem("af:tema", "claro"); });
+      await page.goto(`http://localhost:${PORT}/#/facturas`); await page.reload(); await page.waitForTimeout(900);
+      await shot("app-claro");
+      await page.evaluate(() => { localStorage.setItem("af:tema", "oscuro"); });
     }
     assert.deepEqual(errores, [], "errores en consola: " + errores.join(" | "));
     console.log("✓ E2E emisión No VERI*FACTU con QR y verificación de cadena");

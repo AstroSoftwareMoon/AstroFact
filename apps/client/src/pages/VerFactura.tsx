@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Ban, CheckCircle2, Code2, FileDiff, Printer, Share2 } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, Code2, FileDiff, FileDown, Printer, Share2 } from "lucide-react";
+import { pdfDeFactura } from "../platform/pdf";
 import { useApp } from "../state/app";
 import { Chip, Modal, Panel } from "../ui/kit";
 import DocumentoFactura from "../components/DocumentoFactura";
@@ -32,7 +33,8 @@ export default function VerFactura() {
         <h1 className="text-2xl font-semibold font-mono tracking-tight">{f.numSerie}</h1>
         <EstadoFactura f={f} />{f.dePruebas && <Chip tono="warn">PRUEBAS</Chip>}
         <div className="ml-auto flex flex-wrap gap-2">
-          <button className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Imprimir / PDF</button>
+          <button className="btn-primary" data-testid="descargar-pdf" onClick={async () => { try { descargar(`Factura-${f.numSerie}.pdf`, await pdfDeFactura(f, o, store.plantilla(o.id)), "application/pdf"); } catch (e) { toast((e as Error).message, "error"); } }}><FileDown size={16} />PDF</button>
+          <button className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Imprimir</button>
           <a className="btn-ghost" href={`mailto:${email ?? ""}?subject=${asunto}&body=${cuerpo}`}><Share2 size={16} />Email</a>
           <a className="btn-ghost" href={`https://wa.me/?text=${cuerpo}`} target="_blank" rel="noreferrer">WhatsApp</a>
           {!f.anulada && <button className="btn-ghost" onClick={() => setRect(true)}><FileDiff size={16} />Rectificar</button>}
@@ -40,7 +42,7 @@ export default function VerFactura() {
         </div>
       </div>
       <div className="grid xl:grid-cols-[1fr_320px] gap-5 items-start">
-        <div className="overflow-x-auto rounded-2xl"><DocumentoFactura f={f} o={o} /></div>
+        <div className="overflow-x-auto rounded-2xl"><DocumentoFactura f={f} o={o} p={store.plantilla(o.id)} /></div>
         <div className="space-y-4">
           <Panel>
             <h2 className="font-semibold mb-2">Cobro</h2>

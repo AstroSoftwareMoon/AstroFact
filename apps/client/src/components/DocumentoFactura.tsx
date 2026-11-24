@@ -5,11 +5,13 @@
  * Fase 3 añadirá el PDF y las plantillas personalizables.
  */
 import { svgQr, QR_LAYOUT, TIPO_FACTURA, type TipoFactura } from "@astrofact/fiscal-core";
-import type { Factura, Obligado } from "@astrofact/db";
+import { PLANTILLA_GUARDADA_DEFECTO, type Factura, type Obligado, type PlantillaGuardada } from "@astrofact/db";
 import { euros, fecha } from "../format";
 
-export default function DocumentoFactura({ f, o }: { f: Factura; o: Obligado }) {
+export default function DocumentoFactura({ f, o, p = PLANTILLA_GUARDADA_DEFECTO }: { f: Factura; o: Obligado; p?: PlantillaGuardada }) {
   const d = f.datos; const t = f.totales; const dest = d.destinatarios?.[0];
+  const ac = p.colorAcento; const moderna = p.estilo === "moderna", clasica = p.estilo === "clasica";
+  const pie = p.pieLegal ?? o.pieLegal;
   const verifactu = o.modo === "verifactu";
   const dir = (x?: { linea1?: string; cp?: string; municipio?: string; provincia?: string }) => [x?.linea1, [x?.cp, x?.municipio].filter(Boolean).join(" "), x?.provincia].filter(Boolean).join(" · ");
   return (
@@ -21,22 +23,23 @@ export default function DocumentoFactura({ f, o }: { f: Factura; o: Obligado }) 
         <div style={{ padding: `${QR_LAYOUT.margenRecomendadoMm}mm`, background: "#fff" }} dangerouslySetInnerHTML={{ __html: svgQr(f.qrUrl, QR_LAYOUT.tamanoDefectoMm) }} />
         {verifactu && <div className="font-medium mt-1 text-center">{QR_LAYOUT.leyendaVerifactu}</div>}
       </div>
-      <header className="flex justify-between gap-6 mt-4 border-t border-black/10 pt-5">
+      <header className="flex justify-between gap-6 mt-4 pt-5" style={{ borderTop: moderna ? `2px solid ${ac}` : "1px solid rgba(0,0,0,.12)" }}>
         <div>
+          {p.logoB64 && <img src={`data:image/${p.logoTipo === "jpg" ? "jpeg" : "png"};base64,${p.logoB64}`} alt="Logo" className="max-h-[16mm] max-w-[42mm] object-contain mb-3" />}
           <div className="text-lg font-semibold">{d.emisor.nombre}</div>
           <div className="text-black/60">NIF {d.emisor.nif}</div>
           <div className="text-black/60">{dir(o.direccion)}</div>
           {o.email && <div className="text-black/60">{o.email}</div>}
         </div>
         <div className="text-right">
-          <div className="text-[11px] uppercase tracking-wider text-black/50">{f.tipoFactura.startsWith("R") ? "Factura rectificativa" : f.tipoFactura === "F2" ? "Factura simplificada" : "Factura"}</div>
+          <div className="text-[11px] uppercase tracking-wider font-semibold" style={{ color: moderna ? ac : "rgba(0,0,0,.5)" }}>{f.tipoFactura.startsWith("R") ? "Factura rectificativa" : f.tipoFactura === "F2" ? "Factura simplificada" : "Factura"}</div>
           <div className="text-2xl font-semibold tracking-tight">{f.numSerie}</div>
           <div className="text-black/60">Fecha de expedición: {fecha(f.fechaExpedicion)}</div>
           {f.fechaOperacion && <div className="text-black/60">Fecha de operación: {fecha(f.fechaOperacion)}</div>}
         </div>
       </header>
       {dest && (
-        <section className="mt-5 rounded-xl bg-black/[.03] px-4 py-3">
+        <section className={`mt-5 rounded-xl px-4 py-3 ${p.estilo === "minimal" ? "!px-0" : ""}`} style={{ background: moderna ? `${ac}12` : clasica ? "#f6f6f7" : "transparent", border: clasica ? "1px solid rgba(0,0,0,.1)" : undefined }}>
           <div className="text-[11px] uppercase tracking-wider text-black/50">Cliente</div>
           <div className="font-medium">{dest.nombre}</div>
           <div className="text-black/60">{dest.nif ? `NIF ${dest.nif}` : dest.idOtro ? `${dest.idOtro.codigoPais ?? ""} ${dest.idOtro.id}` : ""}{dest.direccion ? ` · ${dir(dest.direccion)}` : ""}</div>
@@ -47,7 +50,7 @@ export default function DocumentoFactura({ f, o }: { f: Factura; o: Obligado }) 
         </section>)}
       <p className="mt-4"><span className="text-black/50">Concepto:</span> {d.descripcionOperacion}</p>
       <table className="w-full mt-4">
-        <thead><tr className="text-left text-[11px] uppercase tracking-wider text-black/50 border-b border-black/15"><th className="py-2 font-medium">Descripción</th><th className="py-2 font-medium text-right">Cant.</th><th className="py-2 font-medium text-right">Precio</th><th className="py-2 font-medium text-right">Dto.</th><th className="py-2 font-medium text-right">Impuesto</th><th className="py-2 font-medium text-right">Base</th></tr></thead>
+        <thead><tr className="text-left text-[11px] uppercase tracking-wider border-b border-black/15" style={moderna ? { background: ac, color: "#fff" } : { color: "rgba(0,0,0,.5)" }}><th className="py-2 font-medium">Descripción</th><th className="py-2 font-medium text-right">Cant.</th><th className="py-2 font-medium text-right">Precio</th><th className="py-2 font-medium text-right">Dto.</th><th className="py-2 font-medium text-right">Impuesto</th><th className="py-2 font-medium text-right">Base</th></tr></thead>
         <tbody>{d.lineas.map((l, i) => (
           <tr key={i} className="border-b border-black/5"><td className="py-2 pr-2">{l.descripcion}</td><td className="py-2 text-right tabular-nums">{l.cantidad}</td><td className="py-2 text-right tabular-nums">{euros(l.precioUnitario)}</td>
             <td className="py-2 text-right">{l.descuentoPct ? `${l.descuentoPct}%` : ""}</td>
@@ -66,10 +69,12 @@ export default function DocumentoFactura({ f, o }: { f: Factura; o: Obligado }) 
           </tbody>
         </table>
       </div>
+      {p.notas && <p className="mt-5 text-black/70">{p.notas}</p>}
+      {p.mostrarIban && o.iban && <p className="mt-1 text-black/70">Forma de pago: transferencia a {o.iban}</p>}
       {d.lineas.some((l) => l.calificacion === "S2") && <p className="mt-5 text-black/70">Operación con inversión del sujeto pasivo (art. 84.Uno.2º Ley 37/1992).</p>}
       {d.lineas.some((l) => l.exenta) && <p className="mt-2 text-black/70">Operación exenta de IVA según la normativa aplicable ({[...new Set(d.lineas.filter((l) => l.exenta).map((l) => l.exenta))].join(", ")}).</p>}
       <footer className="absolute bottom-[10mm] left-[14mm] right-[14mm] text-[10.5px] text-black/50 border-t border-black/10 pt-2 flex justify-between gap-4">
-        <span>{o.pieLegal ?? ""}{o.iban ? ` IBAN ${o.iban}` : ""}</span><span className="whitespace-nowrap">Página 1</span>
+        <span>{pie ?? ""}</span><span className="whitespace-nowrap">Página 1</span>
       </footer>
     </article>
   );

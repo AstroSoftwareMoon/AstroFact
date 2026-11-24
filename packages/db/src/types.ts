@@ -53,3 +53,10 @@ export function totalesAJson(t: Totales): TotalesJson {
     lineas: t.lineas.map((l) => ({ base: f(l.base), cuota: f(l.cuota), cuotaRecargo: f(l.cuotaRecargo) })),
   };
 }
+
+/** Plantilla de factura guardada (el logo va en base64 dentro de la propia base de datos). */
+export interface PlantillaGuardada {
+  estilo: "moderna" | "clasica" | "minimal"; colorAcento: string; logoB64?: string; logoTipo?: "png" | "jpg";
+  pieLegal?: string; notas?: string; mostrarIban: boolean;
+}
+export const PLANTILLA_GUARDADA_DEFECTO: PlantillaGuardada = { estilo: "moderna", colorAcento: "#6C63FF", mostrarIban: true };

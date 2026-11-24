@@ -14,11 +14,11 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
-      - name: xmllint (validación contra los XSD oficiales de la AEAT)
-        run: sudo apt-get update && sudo apt-get install -y libxml2-utils
+      - name: xmllint (XSD de la AEAT) y poppler (escaneo del QR en los PDF)
+        run: sudo apt-get update && sudo apt-get install -y libxml2-utils poppler-utils
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db test
+      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db --filter @astrofact/pdf test
       - run: pnpm --filter @astrofact/fiscal-core build
       - name: Los ejemplos oficiales siguen validando
         run: cd docs/normativa && xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml
@@ -32,6 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: pnpm --filter @astrofact/client exec playwright install --with-deps chromium
       - run: pnpm --filter @astrofact/client e2e
 

@@ -1,7 +1,7 @@
 # Matriz de cumplimiento: requisito → módulo → test
 
 Estado: ✅ implementado y probado · 🟡 parcial (núcleo listo, falta UI/servidor) · ⏳ fase posterior.
-Fase actual: **2 (app local)**. Servidor y VERI*FACTU en la fase 5.
+Fase actual: **3 (diseño y PDF)**. Servidor y VERI*FACTU en la fase 5.
 
 | Requisito | Norma | Módulo | Test | Estado |
 |---|---|---|---|---|
@@ -20,12 +20,12 @@ Fase actual: **2 (app local)**. Servidor y VERI*FACTU en la fase 5.
 | Verificación de firma | Orden 6.d | `verificarFirmaXml` | `firma-oficial.test.ts` (ejemplo oficial AEAT) | ✅ |
 | Gestión segura del certificado | Orden 4.b | `cargarPkcs12`; `store.guardarCertificado` (AES-256-GCM, contraseña no persistida) | `signature.test.ts`, `store.test.ts` | ✅ (almacén del SO: fase 4) |
 | Registro de eventos encadenado y firmado | Orden 9; EventosSIF.xsd | `src/events.ts`, `records/xml.ts` | `events.test.ts`, `signature.test.ts` (XSD) | ✅ |
-| Resumen de eventos cada 6 h y al cerrar | Orden 9.2 | `events.ts`; `store.tick/cierre`; temporizador en la app | `events.test.ts`, `store.test.ts` | ✅ (cierre en web: al ocultar la ventana; en Tauri se enganchará al evento de cierre) |
+| Resumen de eventos cada 6 h y al cerrar | Orden 9.2 | `events.ts`; `store.tick/cierre`; temporizador; `onCloseRequested` en Tauri | `events.test.ts`, `store.test.ts` | ✅ (en la web: al ocultar la pestaña) |
 | Exportación de registros por periodo | Orden 8.2, 8.5 | `export.ts`; `store.exportarRegistros` (evento 08); ZIP en Registro fiscal | `records.test.ts`, `store.test.ts` (XSD) | ✅ |
 | Conservación sin huecos / inmutabilidad | Orden 8 | `db/schema.ts` (triggers, índice único de cadena) | `store.test.ts` | ✅ (dejar de conservar tras exportar: no ofrecido aún) |
 | QR: URL, parámetros, encoding | Orden 21; doc. QR v0.5.0 §4–8 | `src/qr.ts` | `qr.test.ts` (ejemplos oficiales) | ✅ |
-| QR: nivel M, 30–40 mm, margen, textos | Orden 20–21; doc. QR §2–3 | `qr.ts`; `client/components/DocumentoFactura.tsx` (arriba, centrado, 35 mm, 6 mm de margen) | `qr.test.ts`, E2E | 🟡 (PDF fase 3) |
-| Leyenda VERI*FACTU | Orden 20.1.b | `QR_LAYOUT.leyendaVerifactu` | `qr.test.ts` | 🟡 (PDF fase 3) |
+| QR: nivel M, 30–40 mm, margen, textos, primera página | Orden 20–21; doc. QR §2–3 | `qr.ts`; `pdf/src/generar.ts` (`bloqueQr`); `DocumentoFactura.tsx` | `qr.test.ts`; `pdf.test.ts` (escaneo con jsQR a 300 ppp: URL exacta, 30–40 mm, centrado, arriba, una sola vez en multipágina); E2E | ✅ |
+| Leyenda VERI*FACTU | Orden 20.1.b | `QR_LAYOUT.leyendaVerifactu`; `pdf/src/generar.ts` | `pdf.test.ts` | ✅ |
 | Envío SOAP RegFactuSistemaFacturacion | Orden 16; Descripción SW | `src/aeat/soap.ts` | `records.test.ts` (XSD SuministroLR) | 🟡 (transporte fase 5) |
 | Control de flujo (60 s / 1000) | Orden 16.2 | `src/aeat/flow.ts` | `aeat.test.ts` | ✅ |
 | Procesado de respuestas y SOAP Fault | Orden 4.d; Validaciones 4 | `src/aeat/response.ts` | `aeat.test.ts` | ✅ |
@@ -40,3 +40,4 @@ Fase actual: **2 (app local)**. Servidor y VERI*FACTU en la fase 5.
 | No afirmar certificación/homologación | Encargo / Orden 15 | README, app | revisión | ✅ |
 | RGPD: acceso y supresión compatibles con la conservación | RGPD art. 15, 17.3.b | `store.anonimizarTercero`, `exportarDatosTercero`; explicación en Clientes | `store.test.ts` | ✅ |
 | Cifrado en reposo opcional | — | `db/secure.ts` (PBKDF2 600k + AES-256-GCM) | `store.test.ts` | ✅ |
+| Menciones obligatorias en factura (ISP, exención, rectificativa) | RD 1619/2012 art. 6.1.m, 15 | `pdf/src/generar.ts`, `DocumentoFactura.tsx` | `pdf.test.ts` | ✅ |

@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { AlertTriangle, FilePlus2, FileText, Home, KeyRound, Link2, Package, Settings, Users } from "lucide-react";
 import { useApp } from "../state/app";
@@ -8,6 +8,7 @@ export default function Layout() {
   const app = useApp();
   const { store, obligado: o, t } = app;
   const nav = useNavigate();
+  const loc = useLocation();
   const alarmas = store.alarmasAbiertas(o.id);
   const certOk = store.certificadoDesbloqueado(o.id);
   const cert = store.certificado(o.id);
@@ -53,7 +54,7 @@ export default function Layout() {
             <KeyRound className="text-warn shrink-0" size={16} /><span className="flex-1">Falta el certificado electrónico para firmar los registros.</span>
             <button className="btn-ghost h-8" onClick={() => nav("/ajustes#certificado")}>Configurar</button>
           </div>)}
-        <div className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8"><Outlet /></div>
+        <div key={loc.pathname} className="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 animate-rise"><Outlet /></div>
       </main>
       <nav className="md:hidden fixed bottom-3 inset-x-3 z-40 glass !rounded-3xl px-2 py-2 grid grid-cols-5" style={{ paddingBottom: "max(.5rem, env(safe-area-inset-bottom))" }}>
         {movil.map((i) => (

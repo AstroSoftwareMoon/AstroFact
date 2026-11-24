@@ -17,7 +17,7 @@ import { Mutex, tx, type SqlDriver } from "./driver";
 import { migrar } from "./schema";
 import { cifrar, descifrar, kdfFromJson, kdfToJson } from "./secure";
 import {
-  totalesAJson, type Alarma, type CertificadoInfo, type Direccion, type EventoRow, type Factura, type Obligado, type Producto,
+  totalesAJson, PLANTILLA_GUARDADA_DEFECTO, type PlantillaGuardada, type Alarma, type CertificadoInfo, type Direccion, type EventoRow, type Factura, type Obligado, type Producto,
   type RegistroRow, type Serie, type Tercero,
 } from "./types";
 
@@ -106,6 +106,19 @@ export class AstroFactStore {
   }
   private tz(o: Obligado) { return TIMEZONES[o.territorio]; }
   hoy(obligadoId: number): string { const o = this.obligado(obligadoId)!; return aeatDateToIso(toFechaAeat(this.ahora(), this.tz(o))); }
+
+  /* ------------------------------ Plantilla de factura ------------------------------ */
+  plantilla(obligadoId: number): PlantillaGuardada {
+    const o = this.obligado(obligadoId);
+    const g = pj<PlantillaGuardada>(this.meta(`plantilla:${obligadoId}`));
+    return { ...PLANTILLA_GUARDADA_DEFECTO, pieLegal: o?.pieLegal, ...g };
+  }
+  guardarPlantilla(obligadoId: number, p: PlantillaGuardada) {
+    if (!/^#[0-9a-fA-F]{6}$/.test(p.colorAcento)) throw new Error("Color no válido");
+    if (p.logoB64 && p.logoB64.length > 700_000) throw new Error("El logo es demasiado grande (máx. 500 KB)");
+    this.setMeta(`plantilla:${obligadoId}`, JSON.stringify(p));
+    this.auditar("plantilla.guardar", { obligadoId, estilo: p.estilo });
+  }
 
   /* ------------------------------ Certificado ------------------------------ */
   async guardarCertificado(obligadoId: number, p12: Uint8Array, password: string, dePruebas = false): Promise<CertificadoInfo> {

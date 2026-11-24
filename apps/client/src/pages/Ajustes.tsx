@@ -4,6 +4,7 @@ import { FileKey2, Languages, Lock, Moon, Plus, Scale, Sun } from "lucide-react"
 import declaracion from "../../../../docs/cumplimiento/declaracion-responsable.md?raw";
 import avisoLegal from "../../../../docs/aviso-legal.md?raw";
 import { useApp } from "../state/app";
+import EditorPlantilla from "../components/EditorPlantilla";
 import { Campo, Chip, Modal, Panel, Titulo } from "../ui/kit";
 import { fecha } from "../format";
 
@@ -90,6 +91,8 @@ export default function Ajustes() {
             </div>)}
           <p className="text-xs text-muted mt-4">Número de instalación: <span className="font-mono">{store.sistemaInformatico().NumeroInstalacion}</span> · Versión {store.productor.Version}</p>
         </Panel>
+
+        <div className="lg:col-span-2" id="plantilla"><EditorPlantilla /></div>
 
         <Panel className="lg:col-span-2">
           <h2 className="font-semibold mb-2 flex items-center gap-2"><Scale size={18} className="text-accent" />Legal</h2>
