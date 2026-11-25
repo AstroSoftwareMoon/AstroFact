@@ -8,7 +8,9 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./sqljs": "./src/drivers/sqljs.ts"
+    "./sqljs": "./src/drivers/sqljs.ts",
+    "./node": "./src/drivers/node.ts",
+    "./transporte-node": "./src/drivers/transporte-node.ts"
   },
   "scripts": {
     "test": "vitest run",

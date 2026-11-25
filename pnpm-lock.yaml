@@ -106,6 +106,25 @@ importers:
         specifier: ^5.4.0
         version: 5.12.8
 
+  packages/aeat-sim:
+    dependencies:
+      '@astrofact/fiscal-core':
+        specifier: workspace:*
+        version: link:../fiscal-core
+      '@xmldom/xmldom':
+        specifier: ^0.9.8
+        version: 0.9.12
+    devDependencies:
+      '@astrofact/db':
+        specifier: workspace:*
+        version: link:../db
+      '@types/node-forge':
+        specifier: ^1.3.11
+        version: 1.3.14
+      node-forge:
+        specifier: ^1.3.1
+        version: 1.4.3
+
   packages/db:
     dependencies:
       '@astrofact/fiscal-core':

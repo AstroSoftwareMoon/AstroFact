@@ -1,0 +1,27 @@
+{
+  "name": "@astrofact/aeat-sim",
+  "version": "0.4.0",
+  "private": true,
+  "description": "Simulador del servicio web VERI*FACTU de la AEAT para pruebas e integración (no es la AEAT).",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "start": "node --experimental-strip-types src/cli.ts"
+  },
+  "dependencies": {
+    "@astrofact/fiscal-core": "workspace:*",
+    "@xmldom/xmldom": "^0.9.8"
+  },
+  "devDependencies": {
+    "node-forge": "^1.3.1",
+    "@types/node-forge": "^1.3.11",
+    "@astrofact/db": "workspace:*"
+  }
+}
