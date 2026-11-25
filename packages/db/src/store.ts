@@ -9,15 +9,15 @@ import {
   construirRegistroAnulacion, datosResumen, exportarRegistros, firmarRegistroXml, generarPkcs12Prueba, isoDateToAeat,
   isValidNif, parseIsoWithOffset, registroAltaXml, registroAnulacionXml, registroEventoXml, resumenPendiente, siguienteNumero,
   TIMEZONES, toFechaAeat, toIsoWithOffset, urlQr, validarFactura, verificarCadena, verificarCadenaEventos, verificarFirmaXml,
-  aeatDateToIso, normalizeNif, D, fmtImporte,
+  aeatDateToIso, normalizeNif, D, fmtImporte, marcasAlta, marcasAnulacion,
   type Credencial, type DatosPropiosEvento, type FacturaBorrador, type Incidencia, type RegistroEvento, type RegistroFacturacion,
-  type SistemaInformatico, type TipoEvento, type TipoFactura,
+  type SistemaInformatico, type TipoEvento, type TipoFactura, type SituacionAlta,
 } from "@astrofact/fiscal-core";
 import { Mutex, tx, type SqlDriver } from "./driver";
 import { migrar } from "./schema";
 import { cifrar, descifrar, kdfFromJson, kdfToJson } from "./secure";
 import {
-  totalesAJson, PLANTILLA_GUARDADA_DEFECTO, type PlantillaGuardada, type Alarma, type CertificadoInfo, type Direccion, type EventoRow, type Factura, type Obligado, type Producto,
+  totalesAJson, PLANTILLA_GUARDADA_DEFECTO, type PlantillaGuardada, type EnvioRow, type EstadoAeat, type Alarma, type CertificadoInfo, type Direccion, type EventoRow, type Factura, type Obligado, type Producto,
   type RegistroRow, type Serie, type Tercero,
 } from "./types";
 
@@ -50,6 +50,8 @@ export class AstroFactStore {
   private ahora: () => Date;
   private mutex = new Mutex();
   private credenciales = new Map<number, Credencial>();
+  /** PKCS#12 descifrado en memoria (solo mientras está desbloqueado) para la conexión TLS con la AEAT. */
+  private p12s = new Map<number, { p12: Uint8Array; password: string }>();
   private inicioSesion: Date;
   private onCambio?: () => void;
 
@@ -88,7 +90,6 @@ export class AstroFactStore {
     const nif = normalizeNif(o.nif);
     if (!isValidNif(nif)) throw new Error("El NIF del negocio no es válido");
     if (!o.nombre.trim()) throw new Error("El nombre o razón social es obligatorio");
-    if (o.modo === "verifactu") throw new Error("El modo VERI*FACTU estará disponible en la fase 5 (solo entorno de pruebas)");
     const id = this.db.run(`INSERT INTO obligado (nif, nombre, direccion_json, email, telefono, iban, territorio, modo, entorno, pie_legal, creado_en)
       VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [nif, o.nombre.trim(), j(o.direccion), o.email ?? null, o.telefono ?? null, o.iban ?? null, o.territorio, o.modo, o.entorno, o.pieLegal ?? null, this.nowIso()]).lastInsertRowid;
     this.auditar("obligado.crear", { id, nif });
@@ -133,6 +134,7 @@ export class AstroFactStore {
         dePruebas ? 1 : 0, datos, kdfToJson(kdf), this.nowIso()]).lastInsertRowid;
     });
     this.credenciales.set(obligadoId, cred);
+    this.p12s.set(obligadoId, { p12, password });
     this.auditar("certificado.guardar", { id, titular: cred.titular.cn, dePruebas });
     this.cambiado();
     await this.firmarPendientes(obligadoId);
@@ -153,10 +155,13 @@ export class AstroFactStore {
     if (!r) throw new Error("No hay certificado configurado");
     const p12 = await descifrar(new Uint8Array(r.p12_cifrado), password, kdfFromJson(r.kdf_json));
     this.credenciales.set(obligadoId, await cargarPkcs12(p12, password));
+    this.p12s.set(obligadoId, { p12, password });
     await this.firmarPendientes(obligadoId);
   }
   certificadoDesbloqueado(obligadoId: number) { return this.credenciales.has(obligadoId); }
-  bloquearCertificados() { this.credenciales.clear(); }
+  bloquearCertificados() { this.credenciales.clear(); this.p12s.clear(); }
+  /** Certificado para autenticarse ante la AEAT (mTLS). Solo disponible desbloqueado. */
+  credencialTransporte(obligadoId: number) { return this.p12s.get(obligadoId); }
 
   /* ------------------------------ Series ------------------------------ */
   private mapSerie = (r: any): Serie => ({ id: r.id, obligadoId: r.obligado_id, codigo: r.codigo, plantilla: r.plantilla, clase: r.clase, reinicioAnual: bool(r.reinicio_anual),
@@ -235,14 +240,15 @@ export class AstroFactStore {
   private mapFactura = (r: any): Factura => ({ id: r.id, obligadoId: r.obligado_id, serieId: r.serie_id, numero: r.numero, numSerie: r.num_serie,
     fechaExpedicion: r.fecha_expedicion, fechaOperacion: r.fecha_operacion ?? undefined, tipoFactura: r.tipo_factura, tipoRectificativa: r.tipo_rectificativa ?? undefined,
     terceroId: r.tercero_id ?? undefined, datos: JSON.parse(r.datos_json), totales: JSON.parse(r.totales_json), qrUrl: r.qr_url, dePruebas: bool(r.de_pruebas),
-    estadoCobro: r.estado_cobro, vencimiento: r.vencimiento ?? undefined, anulada: bool(r.anulada), rectificadaPor: r.rectificada_por ?? undefined, emitidaEn: r.emitida_en });
+    estadoCobro: r.estado_cobro, vencimiento: r.vencimiento ?? undefined, anulada: bool(r.anulada), rectificadaPor: r.rectificada_por ?? undefined, emitidaEn: r.emitida_en, estadoAeat: r.estado_aeat ?? undefined });
+  private static SEL_FACTURA = "SELECT f.*, (SELECT r.estado_aeat FROM registro_facturacion r WHERE r.factura_id = f.id ORDER BY r.id DESC LIMIT 1) AS estado_aeat FROM factura f";
   facturas(obligadoId: number, f: { buscar?: string; desde?: string; hasta?: string; limite?: number } = {}): Factura[] {
     const q = `%${(f.buscar ?? "").trim()}%`;
-    return this.db.all(`SELECT * FROM factura WHERE obligado_id = ? AND (num_serie LIKE ? OR datos_json LIKE ?)
-      AND fecha_expedicion >= ? AND fecha_expedicion <= ? ORDER BY fecha_expedicion DESC, id DESC LIMIT ?`,
+    return this.db.all(`${AstroFactStore.SEL_FACTURA} WHERE f.obligado_id = ? AND (f.num_serie LIKE ? OR f.datos_json LIKE ?)
+      AND f.fecha_expedicion >= ? AND f.fecha_expedicion <= ? ORDER BY f.fecha_expedicion DESC, f.id DESC LIMIT ?`,
       [obligadoId, q, q, f.desde ?? "0000-00-00", f.hasta ?? "9999-12-31", f.limite ?? 500]).map(this.mapFactura);
   }
-  factura(id: number) { const r = this.db.get("SELECT * FROM factura WHERE id = ?", [id]); return r ? this.mapFactura(r) : undefined; }
+  factura(id: number) { const r = this.db.get(`${AstroFactStore.SEL_FACTURA} WHERE f.id = ?`, [id]); return r ? this.mapFactura(r) : undefined; }
   marcarCobro(id: number, estado: Factura["estadoCobro"]) { this.db.run("UPDATE factura SET estado_cobro = ? WHERE id = ?", [estado, id]); this.auditar("factura.cobro", { id, estado }); this.cambiado(); }
 
   /** Construye el borrador fiscal completo a partir del borrador de la UI. */
@@ -308,9 +314,9 @@ export class AstroFactStore {
           [obligadoId, serieId, sig.numero, sig.numSerie, fechaExp, borrador.fechaOperacion ?? null, borrador.tipoFactura, borrador.rectificacion?.tipo ?? null,
             b.terceroId ?? null, JSON.stringify(borrador), JSON.stringify(tj), tj.baseTotal, tj.cuotaTotal, tj.importeTotal, tj.retencion, tj.totalAPagar, qr,
             o.entorno === "pruebas" || certInfo?.dePruebas ? 1 : 0, b.vencimiento ?? null, this.nowIso()]).lastInsertRowid;
-        this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [obligadoId, fid, "alta", sig.numSerie, fechaExp, fechaHoraGen, registro.Huella,
-          ultimo ? ultimo.registro.Huella : null, JSON.stringify(registro), xml, cred ? 1 : 0]);
+        this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado, estado_aeat, situacion)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [obligadoId, fid, "alta", sig.numSerie, fechaExp, fechaHoraGen, registro.Huella,
+          ultimo ? ultimo.registro.Huella : null, JSON.stringify(registro), xml, cred ? 1 : 0, o.modo === "verifactu" ? "pendiente" : null, "nuevo"]);
         // Rectificativa: enlaza la(s) original(es)
         for (const r of borrador.rectificacion?.facturas ?? []) {
           this.db.run("UPDATE factura SET rectificada_por = ? WHERE obligado_id = ? AND num_serie = ? AND rectificada_por IS NULL", [fid, obligadoId, r.NumSerieFactura]);
@@ -330,22 +336,130 @@ export class AstroFactStore {
       if (f.anulada) throw new Error("La factura ya está anulada");
       const o = this.obligado(f.obligadoId)!;
       const cred = this.exigirCredencial(o);
+      // VERI*FACTU: si el alta nunca llegó a registrarse en la AEAT → «anulación sin registro previo» (cuadro B)
+      let situacion: "normal" | "sin_registro_previo" = "normal";
+      if (o.modo === "verifactu") {
+        const altas = this.registrosFactura(f.id).filter((r) => r.tipo === "alta");
+        if (!altas.some((r) => r.estadoAeat === "aceptado" || r.estadoAeat === "aceptado_con_errores")) {
+          if (altas.some((r) => r.estadoAeat === "pendiente" || r.estadoAeat === "enviando")) throw new Error("El alta de esta factura aún se está enviando a la AEAT: espera a la respuesta antes de anularla");
+          situacion = "sin_registro_previo";
+        }
+      }
+      const m = marcasAnulacion(situacion);
       const { ultimo, penultimo } = this.ultimoRegistro(o.id);
       const pre = comprobarAntesDeGenerar(ultimo, penultimo, this.ahora());
       if (!pre.ok) { this.abrirAlarma(o.id, "cadena", pre.motivo!); throw new Error(`No se puede generar el registro: ${pre.motivo}`); }
       const fechaHoraGen = this.fechaHoraGen(o.id, ultimo?.registro.FechaHoraHusoGenRegistro);
       const reg = construirRegistroAnulacion({ factura: { IDEmisorFactura: o.nif, NumSerieFactura: f.numSerie, FechaExpedicionFactura: isoDateToAeat(f.fechaExpedicion) },
-        sistema: this.sistemaInformatico(), anterior: ultimo ? cabezaDe(ultimo) : null, fechaHoraGen });
+        sistema: this.sistemaInformatico(), anterior: ultimo ? cabezaDe(ultimo) : null, fechaHoraGen, sinRegistroPrevio: m.SinRegistroPrevio === "S", rechazoPrevio: m.RechazoPrevio === "S" });
       let xml = registroAnulacionXml(reg);
       if (cred) xml = await firmarRegistroXml(xml, cred, this.ahora());
       tx(this.db, () => {
-        this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado)
-          VALUES (?,?,?,?,?,?,?,?,?,?,?)`, [o.id, f.id, "anulacion", f.numSerie, f.fechaExpedicion, fechaHoraGen, reg.Huella, ultimo?.registro.Huella ?? null, JSON.stringify(reg), xml, cred ? 1 : 0]);
+        this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado, estado_aeat, situacion)
+          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [o.id, f.id, "anulacion", f.numSerie, f.fechaExpedicion, fechaHoraGen, reg.Huella, ultimo?.registro.Huella ?? null, JSON.stringify(reg), xml, cred ? 1 : 0,
+          o.modo === "verifactu" ? "pendiente" : null, situacion]);
         this.db.run("UPDATE factura SET anulada = 1 WHERE id = ?", [f.id]);
-        this.auditar("factura.anular", { id: f.id, motivo });
+        this.auditar("factura.anular", { id: f.id, motivo, situacion });
       });
       this.cambiado();
     });
+  }
+
+  /**
+   * Subsanación (solo VERI*FACTU): nuevo registro de alta con los mismos datos de la factura y las
+   * marcas del cuadro oficial según lo ocurrido con el último registro enviado. No modifica la factura.
+   * Úsese cuando el rechazo o el error no exige emitir una rectificativa.
+   */
+  async subsanar(facturaId: number): Promise<RegistroRow> {
+    return this.mutex.run(async () => {
+      const f = this.factura(facturaId); if (!f) throw new Error("Factura inexistente");
+      const o = this.obligado(f.obligadoId)!;
+      if (o.modo !== "verifactu") throw new Error("La subsanación ante la AEAT solo aplica en modo VERI*FACTU");
+      if (f.anulada) throw new Error("La factura está anulada");
+      const altas = this.registrosFactura(f.id).filter((r) => r.tipo === "alta");
+      const ult = altas[altas.length - 1];
+      if (!ult || ult.estadoAeat === "pendiente" || ult.estadoAeat === "enviando") throw new Error("Hay un envío en curso para esta factura");
+      if (ult.estadoAeat === "aceptado") throw new Error("El registro fue aceptado sin errores: no hay nada que subsanar (si cambian importes, emite una rectificativa)");
+      const existeEnAeat = altas.some((r) => r.estadoAeat === "aceptado" || r.estadoAeat === "aceptado_con_errores");
+      const situacion: SituacionAlta = ult.estadoAeat === "aceptado_con_errores" ? "aceptado" : existeEnAeat ? "subsanacion_rechazada" : "rechazado";
+      const m = marcasAlta(situacion);
+      const { ultimo, penultimo } = this.ultimoRegistro(o.id);
+      const pre = comprobarAntesDeGenerar(ultimo, penultimo, this.ahora());
+      if (!pre.ok) { this.abrirAlarma(o.id, "cadena", pre.motivo!); throw new Error(`No se puede generar el registro: ${pre.motivo}`); }
+      const fechaHoraGen = this.fechaHoraGen(o.id, ultimo?.registro.FechaHoraHusoGenRegistro);
+      const { registro } = construirRegistroAlta({ factura: f.datos, sistema: this.sistemaInformatico(), anterior: ultimo ? cabezaDe(ultimo) : null, fechaHoraGen,
+        subsanacion: m.Subsanacion === "S", rechazoPrevio: m.RechazoPrevio });
+      const xml = registroAltaXml(registro);
+      const id = this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado, estado_aeat, situacion)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [o.id, f.id, "alta", f.numSerie, f.fechaExpedicion, fechaHoraGen, registro.Huella, ultimo?.registro.Huella ?? null, JSON.stringify(registro), xml, 0, "pendiente", situacion]).lastInsertRowid;
+      this.auditar("factura.subsanar", { id: f.id, situacion });
+      this.cambiado();
+      return this.mapRegistro(this.db.get("SELECT * FROM registro_facturacion WHERE id = ?", [id]));
+    });
+  }
+
+  /**
+   * Paso de No VERI*FACTU a VERI*FACTU (evento 02, «fin del funcionamiento como NO VERI*FACTU»).
+   * La renuncia a VERI*FACTU solo surte efecto al terminar el año natural (art. 17 Orden):
+   * TODO(normativa): implementar FechaFinVeriFactu y la vuelta a No VERI*FACTU.
+   */
+  async activarVerifactu(obligadoId: number) {
+    const o = this.obligado(obligadoId)!;
+    if (o.modo === "verifactu") return;
+    await this.registrarEvento(obligadoId, "02");
+    this.db.run("UPDATE obligado SET modo = 'verifactu' WHERE id = ?", [obligadoId]);
+    this.auditar("obligado.modo", { obligadoId, modo: "verifactu" });
+    this.cambiado();
+  }
+
+  /* ------------------------------ Envíos a la AEAT ------------------------------ */
+  private mapEnvio = (r: any): EnvioRow => ({ id: r.id, obligadoId: r.obligado_id, creadoEn: r.creado_en, finalizadoEn: r.finalizado_en ?? undefined, estado: r.estado,
+    numRegistros: r.num_registros, csv: r.csv ?? undefined, tiempoEspera: r.tiempo_espera ?? undefined, error: r.error ?? undefined });
+  envios(obligadoId: number, limite = 100): EnvioRow[] { return this.db.all("SELECT id, obligado_id, creado_en, finalizado_en, estado, num_registros, csv, tiempo_espera, error FROM envio_aeat WHERE obligado_id = ? ORDER BY id DESC LIMIT ?", [obligadoId, limite]).map(this.mapEnvio); }
+  envioDetalle(id: number) { return this.db.get<any>("SELECT * FROM envio_aeat WHERE id = ?", [id]); }
+  resumenAeat(obligadoId: number): Record<EstadoAeat, number> {
+    const out = { pendiente: 0, enviando: 0, aceptado: 0, aceptado_con_errores: 0, rechazado: 0 } as Record<EstadoAeat, number>;
+    for (const r of this.db.all<any>("SELECT estado_aeat, COUNT(*) AS n FROM registro_facturacion WHERE obligado_id = ? AND estado_aeat IS NOT NULL GROUP BY estado_aeat", [obligadoId])) out[r.estado_aeat as EstadoAeat] = r.n;
+    return out;
+  }
+  /** Registros pendientes de envío, en orden de la cadena. */
+  pendientesEnvio(obligadoId: number, limite: number) {
+    return this.db.all<any>("SELECT id, tipo, registro_json FROM registro_facturacion WHERE obligado_id = ? AND estado_aeat = 'pendiente' ORDER BY id LIMIT ?", [obligadoId, limite])
+      .map((r) => ({ id: r.id as number, registro: { tipo: r.tipo, registro: JSON.parse(r.registro_json) } as RegistroFacturacion }));
+  }
+  contarPendientes(obligadoId: number) { return this.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM registro_facturacion WHERE obligado_id = ? AND estado_aeat = 'pendiente'", [obligadoId])?.n ?? 0; }
+  /** Uso interno del motor de envío. */
+  iniciarEnvio(obligadoId: number, ids: number[], peticion: string): number {
+    return tx(this.db, () => {
+      const id = this.db.run("INSERT INTO envio_aeat (obligado_id, creado_en, estado, num_registros, peticion_xml) VALUES (?,?,?,?,?)", [obligadoId, this.nowIso(), "enviando", ids.length, peticion]).lastInsertRowid;
+      this.db.run(`UPDATE registro_facturacion SET estado_aeat = 'enviando', envio_id = ? WHERE id IN (${ids.map(() => "?").join(",")})`, [id, ...ids]);
+      return id;
+    });
+  }
+  finalizarEnvio(envioId: number, d: { estado: string; csv?: string; tiempoEspera?: number; error?: string; respuesta?: string;
+    lineas?: { registroId: number; estado: EstadoAeat; codigo?: number; descripcion?: string }[]; devolverAPendiente?: boolean }) {
+    tx(this.db, () => {
+      this.db.run("UPDATE envio_aeat SET estado = ?, csv = ?, tiempo_espera = ?, error = ?, respuesta_xml = ?, finalizado_en = ? WHERE id = ?",
+        [d.estado, d.csv ?? null, d.tiempoEspera ?? null, d.error ?? null, d.respuesta ?? null, this.nowIso(), envioId]);
+      if (d.devolverAPendiente) this.db.run("UPDATE registro_facturacion SET estado_aeat = 'pendiente' WHERE envio_id = ? AND estado_aeat = 'enviando'", [envioId]);
+      for (const l of d.lineas ?? []) this.db.run("UPDATE registro_facturacion SET estado_aeat = ?, aeat_codigo = ?, aeat_descripcion = ?, aeat_csv = ? WHERE id = ?",
+        [l.estado, l.codigo ?? null, l.descripcion ?? null, l.estado === "rechazado" ? null : d.csv ?? null, l.registroId]);
+    });
+    this.cambiado();
+  }
+  /** Cierra las alarmas de envío cuando ya no aplican (conexión recuperada / sin rechazos pendientes de subsanar). */
+  revisarAlarmasAeat(obligadoId: number, conexionOk: boolean) {
+    const now = this.nowIso();
+    if (conexionOk) this.db.run("UPDATE alarma SET resuelta_en = ? WHERE obligado_id = ? AND tipo = 'aeat' AND resuelta_en IS NULL", [now, obligadoId]);
+    const pendientes = this.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM factura f WHERE f.obligado_id = ? AND
+      (SELECT r.estado_aeat FROM registro_facturacion r WHERE r.factura_id = f.id ORDER BY r.id DESC LIMIT 1) = 'rechazado'`, [obligadoId])?.n ?? 0;
+    if (!pendientes) this.db.run("UPDATE alarma SET resuelta_en = ? WHERE obligado_id = ? AND tipo = 'aeat_rechazo' AND resuelta_en IS NULL", [now, obligadoId]);
+    this.cambiado();
+  }
+  /** Recupera envíos interrumpidos (p. ej. cierre de la app a mitad de envío): vuelven a la cola. */
+  recuperarEnviosInterrumpidos(obligadoId: number) {
+    this.db.run("UPDATE registro_facturacion SET estado_aeat = 'pendiente' WHERE obligado_id = ? AND estado_aeat = 'enviando'", [obligadoId]);
+    this.db.run("UPDATE envio_aeat SET estado = 'error_transporte', error = 'Interrumpido', finalizado_en = ? WHERE obligado_id = ? AND estado = 'enviando'", [this.nowIso(), obligadoId]);
   }
 
   /** Prepara el borrador de una rectificativa a partir de una factura emitida. */
@@ -368,7 +482,9 @@ export class AstroFactStore {
   /* ------------------------------ Cadena y registros ------------------------------ */
   private mapRegistro = (r: any): RegistroRow => ({ id: r.id, obligadoId: r.obligado_id, facturaId: r.factura_id ?? undefined, tipo: r.tipo, numSerie: r.num_serie,
     fechaExpedicion: r.fecha_expedicion, fechaHoraGen: r.fecha_hora_gen, huella: r.huella, huellaAnterior: r.huella_anterior ?? undefined, xml: r.xml,
-    firmado: bool(r.firmado), exportadoEn: r.exportado_en ?? undefined });
+    firmado: bool(r.firmado), exportadoEn: r.exportado_en ?? undefined,
+    estadoAeat: r.estado_aeat ?? undefined, aeatCodigo: r.aeat_codigo ?? undefined, aeatDescripcion: r.aeat_descripcion ?? undefined, aeatCsv: r.aeat_csv ?? undefined,
+    envioId: r.envio_id ?? undefined, situacion: r.situacion ?? undefined });
   registros(obligadoId: number): RegistroRow[] { return this.db.all("SELECT * FROM registro_facturacion WHERE obligado_id = ? ORDER BY id", [obligadoId]).map(this.mapRegistro); }
   registrosFactura(facturaId: number): RegistroRow[] { return this.db.all("SELECT * FROM registro_facturacion WHERE factura_id = ? ORDER BY id", [facturaId]).map(this.mapRegistro); }
   cadena(obligadoId: number): RegistroFacturacion[] {

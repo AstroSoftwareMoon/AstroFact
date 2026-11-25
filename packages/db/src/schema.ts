@@ -94,6 +94,20 @@ WHEN NEW.datos_json IS NOT OLD.datos_json OR NEW.num_serie IS NOT OLD.num_serie 
   OR NEW.tercero_id IS NOT OLD.tercero_id OR NEW.qr_url IS NOT OLD.qr_url OR (OLD.anulada = 1 AND NEW.anulada = 0)
 BEGIN SELECT RAISE(ABORT, 'Los datos fiscales de una factura emitida no se pueden modificar'); END;
 `},
+  { version: 2, nombre: "remisión VERI*FACTU", sql: `
+ALTER TABLE registro_facturacion ADD COLUMN estado_aeat TEXT;
+ALTER TABLE registro_facturacion ADD COLUMN aeat_codigo INTEGER;
+ALTER TABLE registro_facturacion ADD COLUMN aeat_descripcion TEXT;
+ALTER TABLE registro_facturacion ADD COLUMN aeat_csv TEXT;
+ALTER TABLE registro_facturacion ADD COLUMN envio_id INTEGER;
+ALTER TABLE registro_facturacion ADD COLUMN situacion TEXT;
+CREATE INDEX ix_rf_estado ON registro_facturacion(obligado_id, estado_aeat);
+CREATE TABLE envio_aeat (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id), creado_en TEXT NOT NULL, finalizado_en TEXT,
+  estado TEXT NOT NULL CHECK (estado IN ('enviando','Correcto','ParcialmenteCorrecto','Incorrecto','error_transporte','fault')),
+  num_registros INTEGER NOT NULL, csv TEXT, tiempo_espera INTEGER, error TEXT, peticion_xml TEXT, respuesta_xml TEXT
+);
+`},
 ];
 
 export function migrar(db: SqlDriver, ahora = () => new Date()): number[] {

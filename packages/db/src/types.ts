@@ -34,10 +34,15 @@ export interface Factura {
   tipoFactura: string; tipoRectificativa?: string; terceroId?: number; datos: FacturaBorrador; totales: TotalesJson;
   qrUrl: string; dePruebas: boolean; estadoCobro: "pendiente" | "cobrada" | "parcial" | "impagada"; vencimiento?: string;
   anulada: boolean; rectificadaPor?: number; emitidaEn: string;
+  /** Estado del último registro en la AEAT (solo VERI*FACTU). */
+  estadoAeat?: EstadoAeat;
 }
+export type EstadoAeat = "pendiente" | "enviando" | "aceptado" | "aceptado_con_errores" | "rechazado";
+export interface EnvioRow { id: number; obligadoId: number; creadoEn: string; finalizadoEn?: string; estado: string; numRegistros: number; csv?: string; tiempoEspera?: number; error?: string; }
 export interface RegistroRow {
   id: number; obligadoId: number; facturaId?: number; tipo: "alta" | "anulacion"; numSerie: string; fechaExpedicion: string;
   fechaHoraGen: string; huella: string; huellaAnterior?: string; xml: string; firmado: boolean; exportadoEn?: string;
+  estadoAeat?: EstadoAeat; aeatCodigo?: number; aeatDescripcion?: string; aeatCsv?: string; envioId?: number; situacion?: string;
 }
 export interface EventoRow { id: number; obligadoId: number; tipo: TipoEvento; fechaHoraGen: string; huella: string; xml: string; firmado: boolean; }
 export interface Alarma { id: number; obligadoId?: number; tipo: string; mensaje: string; detalle?: unknown; creadaEn: string; resueltaEn?: string; }

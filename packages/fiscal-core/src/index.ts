@@ -25,3 +25,5 @@ export * from "./aeat/soap";
 export * from "./aeat/response";
 export * from "./aeat/flow";
 export { el, opt, serialize, escapeXml, toXmlDocument, type XmlNode } from "./xml/writer";
+export * from "./aeat/operativa";
+export * from "./aeat/errores";
