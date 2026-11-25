@@ -52,7 +52,7 @@ astrofact/
 
 `DataAdapter` (interfaz única) con dos implementaciones:
 - **Local (implementado, fase 2)**: SQLite compilado a WebAssembly (`sql.js`) dentro del WebView de Tauri o del navegador; la base de datos se persiste como bytes en el almacenamiento de la propia app (IndexedDB del WebView, que en Tauri vive en el directorio de datos de la aplicación). Cifrado opcional del fichero completo con AES-256-GCM y clave derivada con PBKDF2-SHA-256 (600.000 iteraciones). Mismo `AstroFactStore` (`packages/db`) que usará el servidor con `node:sqlite`/PostgreSQL.
-- **RemoteAdapter**: cliente HTTP del servidor propio (Zod comparte los esquemas).
+- **Servidor (implementado, fase 5)**: el servidor ejecuta las escrituras (lista blanca de métodos con rol mínimo) sobre su `AstroFactStore` (`node:sqlite`, WAL). El cliente recibe una **réplica de solo lectura** (copia `VACUUM INTO` sin usuarios, sesiones, secretos ni certificados), la abre con sql.js y lee con el mismo `AstroFactStore`; se refresca cada 5 s (304 si no hay cambios). Así la interfaz es idéntica en local y en servidor.
 
 La **emisión** es una transacción atómica: reservar número de serie → construir registro (fiscal-core) → comprobar `comprobarAntesDeGenerar` → firmar (No VERI*FACTU) → insertar factura + registro + evento → encolar envío (VERI*FACTU). Si cualquier paso falla, no se consume número.
 

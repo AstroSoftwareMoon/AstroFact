@@ -38,7 +38,7 @@ export default function PanelPage() {
         <div className="flex items-center justify-between px-5 pt-5"><h2 className="font-semibold">Últimas facturas</h2><Link to="/facturas" className="text-sm text-accent">Ver todas</Link></div>
         {facturas.length === 0 ? (
           <Vacio icono={<Sparkles />} titulo="Todavía no has emitido facturas" texto="Prueba con una factura de ejemplo: podrás revisarla antes de emitirla."
-            accion={<button className="btn-primary" onClick={() => nav("/facturas/nueva", { state: { borrador: ejemploFactura(store) } })}><Sparkles size={16} />Crear factura de ejemplo</button>} />
+            accion={<button className="btn-primary" onClick={async () => nav("/facturas/nueva", { state: { borrador: await ejemploFactura(store) } })}><Sparkles size={16} />Crear factura de ejemplo</button>} />
         ) : (
           <table className="w-full text-sm mt-3">
             <tbody>{facturas.slice(0, 6).map((f) => (

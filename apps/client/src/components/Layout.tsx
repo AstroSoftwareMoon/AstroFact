@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { AlertTriangle, FilePlus2, FileText, Home, KeyRound, Link2, Package, Settings, Users } from "lucide-react";
+import { AlertTriangle, FilePlus2, FileText, Home, KeyRound, Link2, LogOut, Package, Send, Settings, Users } from "lucide-react";
 import { useApp } from "../state/app";
 import { Logo, Modal, Campo } from "../ui/kit";
 import { useAvisoActualizacion } from "./Actualizaciones";
@@ -21,6 +21,7 @@ export default function Layout() {
     { to: "/facturas/nueva", icon: FilePlus2, label: t("nav.nueva") },
     { to: "/clientes", icon: Users, label: t("nav.clientes") },
     { to: "/productos", icon: Package, label: t("nav.productos") },
+    ...(o.modo === "verifactu" ? [{ to: "/envios", icon: Send, label: "Envíos AEAT" }] : []),
     { to: "/registro", icon: Link2, label: t("nav.registro") },
     { to: "/ajustes", icon: Settings, label: t("nav.ajustes") },
   ];
@@ -34,21 +35,28 @@ export default function Layout() {
         <div className="mt-auto glass !rounded-2xl p-3 text-xs">
           <div className="font-medium truncate">{o.nombre}</div><div className="text-muted font-mono">{o.nif}</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="chip border-accent/40 text-accent">No VERI*FACTU</span>
+            <span className="chip border-accent/40 text-accent">{o.modo === "verifactu" ? "VERI*FACTU" : "No VERI*FACTU"}</span>
             {o.entorno === "pruebas" && <span className="chip border-warn/40 text-warn">PRUEBAS</span>}
           </div>
+          {app.modo === "servidor" && app.usuario && (
+            <div className="mt-3 pt-3 border-t border-line/10 flex items-center justify-between gap-2">
+              <div className="min-w-0"><div className="truncate">{app.usuario.email}</div><div className="text-muted">{app.usuario.rol}</div></div>
+              <button className="btn-ghost h-8 w-8 px-0 shrink-0" aria-label="Cerrar sesión" onClick={() => void app.salir()}><LogOut size={14} /></button>
+            </div>)}
         </div>
       </aside>
       <main className="flex-1 min-w-0 pb-28 md:pb-10">
         {alarmas.length > 0 && (
           <div role="alert" className="sticky top-0 z-30 m-3 md:m-4 rounded-2xl border border-bad/60 bg-bad/15 backdrop-blur-xl px-4 py-3 flex items-center gap-3 text-sm">
             <AlertTriangle className="text-bad shrink-0" size={18} />
-            <span className="flex-1"><b>Alarma de integridad:</b> {alarmas[0]!.mensaje}. No se desactivará hasta que la cadena vuelva a ser íntegra (art. 6.f Orden HAC/1177/2024).</span>
-            <button className="btn-ghost h-8" onClick={() => nav("/registro")}>Revisar</button>
+            {alarmas[0]!.tipo.startsWith("aeat")
+              ? <span className="flex-1"><b>AEAT:</b> {alarmas[0]!.mensaje}</span>
+              : <span className="flex-1"><b>Alarma de integridad:</b> {alarmas[0]!.mensaje}. No se desactivará hasta que la cadena vuelva a ser íntegra (art. 6.f Orden HAC/1177/2024).</span>}
+            <button className="btn-ghost h-8" onClick={() => nav(alarmas[0]!.tipo.startsWith("aeat") ? "/envios" : "/registro")}>Revisar</button>
           </div>)}
         {cert && !certOk && (
           <div className="mx-3 md:mx-4 mt-3 rounded-2xl border border-warn/50 bg-warn/10 backdrop-blur-xl px-4 py-2.5 flex items-center gap-3 text-sm">
-            <KeyRound className="text-warn shrink-0" size={16} /><span className="flex-1">Certificado bloqueado: desbloquéalo para emitir y firmar registros.</span>
+            <KeyRound className="text-warn shrink-0" size={16} /><span className="flex-1">{o.modo === "verifactu" ? "Certificado bloqueado: desbloquéalo para enviar los registros a la AEAT." : "Certificado bloqueado: desbloquéalo para emitir y firmar registros."}</span>
             <button className="btn-ghost h-8" onClick={() => setDesb(true)}>Desbloquear</button>
           </div>)}
         {!cert && (
@@ -71,13 +79,15 @@ export default function Layout() {
 
 export function DesbloquearCert({ abierto, onClose }: { abierto: boolean; onClose: () => void }) {
   const { store, obligado: o, toast } = useApp();
-  const [pass, setPass] = useState(""); const [err, setErr] = useState<string>(); const [busy, setBusy] = useState(false);
+  const app = useApp();
+  const [pass, setPass] = useState(""); const [err, setErr] = useState<string>(); const [busy, setBusy] = useState(false); const [recordar, setRecordar] = useState(true);
   return (
     <Modal abierto={abierto} onClose={onClose} titulo="Desbloquear certificado">
       <form onSubmit={async (e) => { e.preventDefault(); setBusy(true); setErr(undefined);
-        try { await store.desbloquearCertificado(o.id, pass); toast("Certificado desbloqueado para esta sesión"); setPass(""); onClose(); } catch (x) { setErr((x as Error).message); } finally { setBusy(false); } }}>
-        <p className="text-sm text-muted mb-4">La contraseña solo se usa para descifrar el certificado en memoria durante esta sesión; no se guarda.</p>
+        try { if (app.cliente) app.cliente.recordarCertificado = recordar; await store.desbloquearCertificado(o.id, pass); toast("Certificado desbloqueado para esta sesión"); setPass(""); onClose(); } catch (x) { setErr((x as Error).message); } finally { setBusy(false); } }}>
+        <p className="text-sm text-muted mb-4">{app.modo === "servidor" ? "La contraseña se envía cifrada (HTTPS) a tu servidor para descifrar allí el certificado." : "La contraseña solo se usa para descifrar el certificado en memoria durante esta sesión; no se guarda."}</p>
         <Campo label="Contraseña del certificado" error={err}><input className="input" type="password" autoFocus value={pass} onChange={(e) => setPass(e.target.value)} /></Campo>
+        {app.modo === "servidor" && <label className="flex items-center gap-2 text-sm mt-3"><input type="checkbox" className="h-4 w-4" checked={recordar} onChange={(e) => setRecordar(e.target.checked)} />Recordar en el servidor (cifrada con su clave maestra) para trabajar sin intervención</label>}
         <div className="flex justify-end gap-2 mt-5"><button type="button" className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !pass}>{busy ? "Descifrando…" : "Desbloquear"}</button></div>
       </form>
     </Modal>

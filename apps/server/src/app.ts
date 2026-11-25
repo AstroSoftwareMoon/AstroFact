@@ -88,7 +88,7 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
   });
 
   app.get("/api/salud", async () => ({ estado: "ok", version: c.version, fase: 5 }));
-  app.get("/api/estado", async (req) => ({ instalado: usuarios.hayUsuarios(), negocio: !!store.obligado(), usuario: usuarios.sesion(tokenDe(req)) ?? null, version: c.version }));
+  app.get("/api/estado", async (req) => ({ instalado: usuarios.hayUsuarios(), negocio: !!store.obligado(), usuario: usuarios.sesion(tokenDe(req)) ?? null, version: c.version, aeatSimulada: !!c.aeatUrl }));
 
   const Credenciales = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(500), codigo: z.string().max(10).optional(), nombre: z.string().max(120).optional() });
   app.post("/api/instalacion", { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } }, async (req) => {

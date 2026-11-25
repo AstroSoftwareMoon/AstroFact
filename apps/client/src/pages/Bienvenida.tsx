@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Building2, Check, FileKey2, Globe2, HardDrive, Lock, Server, ShieldCheck, Sparkles } from "lucide-react";
 import { validateNif } from "@astrofact/fiscal-core";
 import { useApp } from "../state/app";
 import { Campo, Chip, Logo } from "../ui/kit";
 import { ejemploFactura } from "./ejemplo";
+import AccesoServidor from "../components/AccesoServidor";
+import { verifactuLocalDisponible } from "../platform/transporte";
 
 const PASOS = ["idioma", "uso", "negocio", "serie", "cert", "seguridad", "listo"] as const;
 
@@ -12,7 +14,13 @@ export default function Bienvenida() {
   const app = useApp();
   const nav = useNavigate();
   const { t, idioma, setIdioma } = app;
-  const [paso, setPaso] = useState(0);
+  const remoto = app.modo === "servidor";
+  // En modo servidor ya autenticado, el asistente empieza en «negocio»
+  const [paso, setPaso] = useState(remoto && app.usuario ? 2 : 0);
+  const [usoServidor, setUsoServidor] = useState(false);
+  const vfPosible = remoto || verifactuLocalDisponible();
+  useEffect(() => { if (remoto && app.usuario) setPaso((p) => Math.max(p, 2)); }, [remoto, app.usuario]);
+  const [modalidad, setModalidad] = useState<"no_verifactu" | "verifactu">("no_verifactu");
   const [neg, setNeg] = useState({ nif: "", nombre: "", linea1: "", cp: "", municipio: "", provincia: "", email: "", territorio: "peninsula" as "peninsula" | "canarias", entorno: "pruebas" as "pruebas" | "produccion" });
   const [serie, setSerie] = useState({ codigo: "A", plantilla: "{serie}-{año}-{num:4}", rect: true, simpl: false });
   const [cert, setCert] = useState<{ modo: "p12" | "pruebas" | "luego"; fichero?: File; pass: string }>({ modo: "pruebas", pass: "" });
@@ -20,21 +28,21 @@ export default function Bienvenida() {
   const [trabajando, setTrabajando] = useState(false);
   const [err, setErr] = useState<string>();
   const nifR = neg.nif ? validateNif(neg.nif) : undefined;
-  const sig = () => { setErr(undefined); setPaso((p) => Math.min(p + 1, PASOS.length - 1)); };
+  const sig = () => { setErr(undefined); setPaso((p) => { let n = Math.min(p + 1, PASOS.length - 1); if (remoto && PASOS[n] === "seguridad") n++; return n; }); };
   const atras = () => { setErr(undefined); setPaso((p) => Math.max(p - 1, 0)); };
   const id = PASOS[paso];
 
   async function finalizar() {
     setTrabajando(true); setErr(undefined);
     try {
-      if (cifrar.activo) { if (cifrar.pass !== cifrar.pass2) throw new Error("Las contraseñas no coinciden"); await app.activarCifrado(cifrar.pass); }
+      if (!remoto && cifrar.activo) { if (cifrar.pass !== cifrar.pass2) throw new Error("Las contraseñas no coinciden"); await app.activarCifrado(cifrar.pass); }
       const s = app.crearStoreNuevo();
-      const o = s.obligado() ?? s.crearObligado({ nif: neg.nif, nombre: neg.nombre, territorio: neg.territorio, modo: "no_verifactu", entorno: neg.entorno, email: neg.email || undefined,
+      const o = s.obligado() ?? await s.crearObligado({ nif: neg.nif, nombre: neg.nombre, territorio: neg.territorio, modo: modalidad, entorno: neg.entorno, email: neg.email || undefined,
         direccion: { linea1: neg.linea1 || undefined, cp: neg.cp || undefined, municipio: neg.municipio || undefined, provincia: neg.provincia || undefined, pais: "España" } });
       if (!s.series(o.id).length) {
-        s.crearSerie(o.id, { codigo: serie.codigo, plantilla: serie.plantilla, clase: "ordinaria", reinicioAnual: true });
-        if (serie.rect) s.crearSerie(o.id, { codigo: "R", plantilla: "R-{año}-{num:4}", clase: "rectificativa", reinicioAnual: true });
-        if (serie.simpl) s.crearSerie(o.id, { codigo: "T", plantilla: "T-{año}-{num:5}", clase: "simplificada", reinicioAnual: true });
+        await s.crearSerie(o.id, { codigo: serie.codigo, plantilla: serie.plantilla, clase: "ordinaria", reinicioAnual: true });
+        if (serie.rect) await s.crearSerie(o.id, { codigo: "R", plantilla: "R-{año}-{num:4}", clase: "rectificativa", reinicioAnual: true });
+        if (serie.simpl) await s.crearSerie(o.id, { codigo: "T", plantilla: "T-{año}-{num:5}", clase: "simplificada", reinicioAnual: true });
       }
       if (cert.modo === "pruebas") await s.generarCertificadoPruebas(o.id, cert.pass);
       else if (cert.modo === "p12" && cert.fichero) await s.guardarCertificado(o.id, new Uint8Array(await cert.fichero.arrayBuffer()), cert.pass);
@@ -70,9 +78,10 @@ export default function Bienvenida() {
           {id === "uso" && (<>
             <h2 className="text-xl font-semibold">{t("w.modoUso")}</h2>
             <div className="grid sm:grid-cols-2 gap-3 mt-5">
-              <button className="glass !rounded-2xl p-5 text-left ring-2 ring-accent"><HardDrive className="text-accent mb-3" /><div className="font-medium">{t("w.local")}</div><p className="text-sm text-muted mt-1">{t("w.localD")}</p></button>
-              <button disabled className="glass !rounded-2xl p-5 text-left opacity-50 cursor-not-allowed"><Server className="mb-3" /><div className="font-medium flex items-center gap-2">{t("w.servidor")} <Chip>Fase 5</Chip></div><p className="text-sm text-muted mt-1">{t("w.servidorD")}</p></button>
+              <button onClick={() => setUsoServidor(false)} className={`glass !rounded-2xl p-5 text-left transition ${!usoServidor ? "ring-2 ring-accent" : "opacity-80"}`}><HardDrive className="text-accent mb-3" /><div className="font-medium">{t("w.local")}</div><p className="text-sm text-muted mt-1">{t("w.localD")}</p></button>
+              <button onClick={() => setUsoServidor(true)} className={`glass !rounded-2xl p-5 text-left transition ${usoServidor ? "ring-2 ring-accent" : "opacity-80"}`} data-testid="uso-servidor"><Server className="text-accent mb-3" /><div className="font-medium">{t("w.servidor")}</div><p className="text-sm text-muted mt-1">{t("w.servidorD")}</p></button>
             </div>
+            {usoServidor && <div className="mt-5"><AccesoServidor /></div>}
           </>)}
 
           {id === "negocio" && (<>
@@ -93,8 +102,8 @@ export default function Bienvenida() {
             </div>
             <div className="mt-6"><span className="label">{t("w.modalidad")}</span>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="glass !rounded-2xl p-4 ring-2 ring-accent"><div className="font-medium flex items-center gap-2"><ShieldCheck size={16} className="text-accent" />No VERI*FACTU</div><p className="text-xs text-muted mt-1">Registros firmados con tu certificado y guardados en tu equipo, con registro de eventos.</p></div>
-                <div className="glass !rounded-2xl p-4 opacity-50"><div className="font-medium flex items-center gap-2">VERI*FACTU <Chip>Fase 5</Chip></div><p className="text-xs text-muted mt-1">Envío automático de cada registro a la AEAT.</p></div>
+                <button onClick={() => setModalidad("no_verifactu")} className={`glass !rounded-2xl p-4 text-left ${modalidad === "no_verifactu" ? "ring-2 ring-accent" : "opacity-80"}`}><div className="font-medium flex items-center gap-2"><ShieldCheck size={16} className="text-accent" />No VERI*FACTU</div><p className="text-xs text-muted mt-1">Registros firmados con tu certificado y guardados {remoto ? "en tu servidor" : "en tu equipo"}, con registro de eventos.</p></button>
+                <button disabled={!vfPosible} onClick={() => setModalidad("verifactu")} className={`glass !rounded-2xl p-4 text-left disabled:opacity-40 ${modalidad === "verifactu" ? "ring-2 ring-accent" : "opacity-80"}`} data-testid="modalidad-verifactu"><div className="font-medium flex items-center gap-2">VERI*FACTU</div><p className="text-xs text-muted mt-1">{vfPosible ? "Cada registro se envía automáticamente a la AEAT con tu certificado. La factura lleva la leyenda «Factura verificable en la sede electrónica de la AEAT»." : "Requiere la app de escritorio o un servidor: el navegador no puede usar tu certificado para conectar con la AEAT."}</p></button>
               </div>
             </div>
             <div className="mt-5"><Campo label="Entorno" ayuda={neg.entorno === "pruebas" ? "Recomendado mientras pruebas: el QR apunta al portal de pruebas de la AEAT y las facturas se marcan «PRUEBAS»." : "Solo para facturas reales, con tu certificado cualificado."}>
@@ -126,8 +135,9 @@ export default function Bienvenida() {
                   <div className="font-medium">{ti}</div><p className="text-xs text-muted mt-0.5">{d}</p>
                 </button>))}
             </div>
-            {cert.modo === "p12" && <div className="mt-4"><input type="file" accept=".p12,.pfx" className="input pt-2" onChange={(e) => setCert({ ...cert, fichero: e.target.files?.[0] })} /></div>}
-            {cert.modo !== "luego" && <div className="mt-4"><Campo label={cert.modo === "p12" ? "Contraseña del certificado" : "Contraseña para proteger el certificado de pruebas"}><input className="input" type="password" value={cert.pass} onChange={(e) => setCert({ ...cert, pass: e.target.value })} autoComplete="new-password" /></Campo></div>}
+            {cert.modo === "p12" && <div className="mt-4"><input type="file" accept=".p12,.pfx" className="input pt-2" data-testid="fichero-cert" onChange={(e) => setCert({ ...cert, fichero: e.target.files?.[0] })} /></div>}
+            {cert.modo !== "luego" && <div className="mt-4"><Campo label={cert.modo === "p12" ? "Contraseña del certificado" : "Contraseña para proteger el certificado de pruebas"}><input className="input" type="password" value={cert.pass} onChange={(e) => setCert({ ...cert, pass: e.target.value })} autoComplete="new-password" data-testid="pass-cert" /></Campo></div>}
+            {remoto && cert.modo !== "luego" && <p className="text-xs text-muted mt-3">El certificado se guarda cifrado en tu servidor. Su contraseña se conserva cifrada con la clave maestra del servidor para poder {modalidad === "verifactu" ? "enviar a la AEAT" : "firmar"} sin que tengas que introducirla cada vez.</p>}
           </>)}
 
           {id === "seguridad" && (<>
@@ -145,7 +155,7 @@ export default function Bienvenida() {
             <h2 className="text-2xl font-semibold">{t("w.listo")}</h2>
             <p className="text-muted mt-2 max-w-md mx-auto">Tu sistema de facturación está configurado. Te proponemos una factura de ejemplo: la revisas y decides si emitirla (una factura emitida ya no se puede borrar).</p>
             <div className="flex flex-wrap gap-3 justify-center mt-6">
-              <button className="btn-primary" onClick={async () => { await app.terminarBienvenida(); nav("/facturas/nueva", { state: { borrador: ejemploFactura(app.store) } }); }}><Sparkles size={16} />Factura de ejemplo</button>
+              <button className="btn-primary" onClick={async () => { await app.terminarBienvenida(); nav("/facturas/nueva", { state: { borrador: await ejemploFactura(app.store) } }); }}><Sparkles size={16} />Factura de ejemplo</button>
               <button className="btn-ghost" onClick={async () => { await app.terminarBienvenida(); nav("/"); }}>Ir al panel</button>
             </div>
           </div>)}
@@ -153,10 +163,10 @@ export default function Bienvenida() {
           {err && <p className="mt-4 text-sm text-bad" role="alert">{err}</p>}
           {id !== "listo" && (
             <div className="flex justify-between mt-8">
-              <button className="btn-ghost" onClick={atras} disabled={paso === 0}>{t("comun.atras")}</button>
-              {id === "seguridad"
-                ? <button className="btn-primary" onClick={finalizar} disabled={trabajando || (cifrar.activo && cifrar.pass.length < 8)}>{trabajando ? "Configurando…" : t("comun.empezar")}</button>
-                : <button className="btn-primary" onClick={sig} disabled={(id === "negocio" && !negocioOk) || (id === "cert" && !certOk) || (id === "serie" && !serie.codigo)}>{t("comun.siguiente")}</button>}
+              <button className="btn-ghost" onClick={atras} disabled={paso === 0 || (remoto && paso <= 2)}>{t("comun.atras")}</button>
+              {id === "seguridad" || (remoto && id === "cert")
+                ? <button className="btn-primary" onClick={finalizar} disabled={trabajando || (!remoto && cifrar.activo && cifrar.pass.length < 8) || (id === "cert" && !certOk)}>{trabajando ? "Configurando…" : t("comun.empezar")}</button>
+                : <button className="btn-primary" onClick={sig} disabled={(id === "uso" && usoServidor) || (id === "negocio" && !negocioOk) || (id === "cert" && !certOk) || (id === "serie" && !serie.codigo)}>{t("comun.siguiente")}</button>}
             </div>)}
         </div>
       </div>

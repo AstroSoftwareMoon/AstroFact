@@ -5,7 +5,7 @@ import { pdfDeFactura } from "../platform/pdf";
 import { useApp } from "../state/app";
 import { Chip, Modal, Panel } from "../ui/kit";
 import DocumentoFactura from "../components/DocumentoFactura";
-import EstadoFactura from "../components/EstadoFactura";
+import EstadoFactura, { ETIQUETA_AEAT } from "../components/EstadoFactura";
 import { descargar } from "../platform/storage";
 import { corto, euros, fechaHora } from "../format";
 
@@ -37,6 +37,7 @@ export default function VerFactura() {
           <button className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Imprimir</button>
           <a className="btn-ghost" href={`mailto:${email ?? ""}?subject=${asunto}&body=${cuerpo}`}><Share2 size={16} />Email</a>
           <a className="btn-ghost" href={`https://wa.me/?text=${cuerpo}`} target="_blank" rel="noreferrer">WhatsApp</a>
+          {(f.estadoAeat === "rechazado" || f.estadoAeat === "aceptado_con_errores") && !f.anulada && <button className="btn-ghost" onClick={async () => { try { await store.subsanar(f.id); toast("Registro de subsanación generado y en cola de envío"); } catch (e) { toast((e as Error).message, "error"); } }}>Subsanar</button>}
           {!f.anulada && <button className="btn-ghost" onClick={() => setRect(true)}><FileDiff size={16} />Rectificar</button>}
           {!f.anulada && <button className="btn-ghost text-bad" onClick={() => setAnular(true)}><Ban size={16} />Anular</button>}
         </div>
@@ -46,7 +47,7 @@ export default function VerFactura() {
         <div className="space-y-4">
           <Panel>
             <h2 className="font-semibold mb-2">Cobro</h2>
-            <select className="input" value={f.estadoCobro} onChange={(e) => { store.marcarCobro(f.id, e.target.value as typeof f.estadoCobro); toast("Estado de cobro actualizado"); }}>
+            <select className="input" value={f.estadoCobro} onChange={async (e) => { await store.marcarCobro(f.id, e.target.value as typeof f.estadoCobro); toast("Estado de cobro actualizado"); }}>
               <option value="pendiente">Pendiente</option><option value="parcial">Cobro parcial</option><option value="cobrada">Cobrada</option><option value="impagada">Impagada</option></select>
             {rectificadora && <p className="text-sm mt-3">Rectificada por <Link className="text-accent font-mono" to={`/facturas/${rectificadora.id}`}>{rectificadora.numSerie}</Link></p>}
           </Panel>
@@ -55,7 +56,10 @@ export default function VerFactura() {
             <ol className="space-y-3">{regs.map((r) => (
               <li key={r.id} className="rounded-2xl bg-glass/[.04] border border-line/10 p-3 text-xs">
                 <div className="flex items-center justify-between"><Chip tono={r.tipo === "alta" ? "acc" : "bad"}>{r.tipo === "alta" ? "Alta" : "Anulación"}</Chip>{r.firmado && <span className="flex items-center gap-1 text-ok"><CheckCircle2 size={13} />Firmado XAdES</span>}</div>
-                <div className="mt-2 text-muted">Generado {fechaHora(r.fechaHoraGen)}</div>
+                <div className="mt-2 text-muted">Generado {fechaHora(r.fechaHoraGen)}{r.situacion && !["nuevo", "normal"].includes(r.situacion) ? ` · ${r.situacion.replace(/_/g, " ")}` : ""}</div>
+                {r.estadoAeat && <div className="mt-2"><Chip tono={ETIQUETA_AEAT[r.estadoAeat][1]}>{ETIQUETA_AEAT[r.estadoAeat][0]}</Chip>
+                  {r.aeatCodigo && <div className="mt-1 text-muted"><b className="font-mono">{r.aeatCodigo}</b> · {r.aeatDescripcion}</div>}
+                  {r.aeatCsv && <div className="mt-1 font-mono text-muted">CSV {r.aeatCsv}</div>}</div>}
                 <div className="font-mono mt-1 break-all" title={r.huella}>Huella {corto(r.huella)}</div>
                 <div className="font-mono text-muted break-all">Anterior {r.huellaAnterior ? corto(r.huellaAnterior) : "— (primer registro)"}</div>
                 <div className="flex gap-2 mt-2">

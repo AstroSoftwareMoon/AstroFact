@@ -20,11 +20,11 @@ export default function Productos() {
               <td className="px-5 py-3 cursor-pointer" onClick={() => setEdit(p)}><div className="font-medium">{p.nombre}</div><div className="text-xs text-muted">{p.codigo ?? ""}</div></td>
               <td className="py-3 text-muted">{p.exenta ? `Exento ${p.exenta}` : `IVA ${p.tipo ?? "—"} %`}</td>
               <td className="py-3 text-right tabular-nums font-medium">{euros(p.precio)}</td>
-              <td className="px-5 py-3 text-right"><button className="btn-ghost h-8 w-8 px-0" aria-label="Archivar" onClick={() => { store.archivarProducto(p.id); toast("Producto archivado"); }}><Archive size={14} /></button></td>
+              <td className="px-5 py-3 text-right"><button className="btn-ghost h-8 w-8 px-0" aria-label="Archivar" onClick={async () => { await store.archivarProducto(p.id); toast("Producto archivado"); }}><Archive size={14} /></button></td>
             </tr>))}</tbody></table>)}
       </Panel>
       <Modal abierto={!!edit} onClose={() => setEdit(null)} titulo={edit?.id ? "Editar producto" : "Nuevo producto"}>
-        {edit && <form onSubmit={(e) => { e.preventDefault(); try { store.guardarProducto(o.id, edit); toast("Producto guardado"); setEdit(null); setErr(undefined); } catch (x) { setErr((x as Error).message); } }}>
+        {edit && <form onSubmit={async (e) => { e.preventDefault(); try { await store.guardarProducto(o.id, edit); toast("Producto guardado"); setEdit(null); setErr(undefined); } catch (x) { setErr((x as Error).message); } }}>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2"><Campo label="Nombre"><input className="input" autoFocus required value={edit.nombre} onChange={(e) => setEdit({ ...edit, nombre: e.target.value })} /></Campo></div>
             <Campo label="Código (opcional)"><input className="input" value={edit.codigo ?? ""} onChange={(e) => setEdit({ ...edit, codigo: e.target.value })} /></Campo>

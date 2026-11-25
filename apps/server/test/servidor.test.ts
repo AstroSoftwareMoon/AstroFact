@@ -39,7 +39,7 @@ describe("Servidor: seguridad", () => {
 
   it("instalación única, login genérico, rate limiting", async () => {
     const app = await nuevo();
-    expect((await app.inject("/api/estado")).json()).toMatchObject({ instalado: false });
+    expect((await app.inject("/api/estado")).json()).toMatchObject({ instalado: false, aeatSimulada: true });
     await instalar(app);
     expect((await app.inject({ method: "POST", url: "/api/instalacion", payload: { email: "otro@example.com", password: "una-clave-larga-2" } })).statusCode).toBe(409);
     const mal = await app.inject({ method: "POST", url: "/api/sesion", payload: { email: "duena@example.com", password: "incorrecta" } });

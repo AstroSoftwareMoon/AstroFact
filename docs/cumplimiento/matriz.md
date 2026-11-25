@@ -1,7 +1,7 @@
 # Matriz de cumplimiento: requisito → módulo → test
 
 Estado: ✅ implementado y probado · 🟡 parcial (núcleo listo, falta UI/servidor) · ⏳ fase posterior.
-Fase actual: **3 (diseño y PDF)**. Servidor y VERI*FACTU en la fase 5.
+Fase actual: **5 (servidor y VERI*FACTU)**.
 
 | Requisito | Norma | Módulo | Test | Estado |
 |---|---|---|---|---|
@@ -26,10 +26,10 @@ Fase actual: **3 (diseño y PDF)**. Servidor y VERI*FACTU en la fase 5.
 | QR: URL, parámetros, encoding | Orden 21; doc. QR v0.5.0 §4–8 | `src/qr.ts` | `qr.test.ts` (ejemplos oficiales) | ✅ |
 | QR: nivel M, 30–40 mm, margen, textos, primera página | Orden 20–21; doc. QR §2–3 | `qr.ts`; `pdf/src/generar.ts` (`bloqueQr`); `DocumentoFactura.tsx` | `qr.test.ts`; `pdf.test.ts` (escaneo con jsQR a 300 ppp: URL exacta, 30–40 mm, centrado, arriba, una sola vez en multipágina); E2E | ✅ |
 | Leyenda VERI*FACTU | Orden 20.1.b | `QR_LAYOUT.leyendaVerifactu`; `pdf/src/generar.ts` | `pdf.test.ts` | ✅ |
-| Envío SOAP RegFactuSistemaFacturacion | Orden 16; Descripción SW | `src/aeat/soap.ts` | `records.test.ts` (XSD SuministroLR) | 🟡 (transporte fase 5) |
+| Envío SOAP RegFactuSistemaFacturacion con certificado (mTLS) | Orden 4, 5, 16; Descripción SW | `aeat/soap.ts`; `db/verifactu.ts`; `db/drivers/transporte-node.ts`; Tauri `aeat_enviar` | `records.test.ts` (XSD), `aeat-sim/integracion.test.ts` (mTLS real), `e2e/servidor.cjs` | ✅ (contra simulador; AEAT de pruebas: pendiente de certificado) |
 | Control de flujo (60 s / 1000) | Orden 16.2 | `src/aeat/flow.ts` | `aeat.test.ts` | ✅ |
 | Procesado de respuestas y SOAP Fault | Orden 4.d; Validaciones 4 | `src/aeat/response.ts` | `aeat.test.ts` | ✅ |
-| Subsanación / rechazo previo | Descripción SW 9.1.2 | `construirRegistroAlta({subsanacion, rechazoPrevio})` | — | 🟡 fase 5 |
+| Subsanación / rechazo previo / anulación sin registro previo | Cuadros A y B (DsRegistroVeriFactu) | `aeat/operativa.ts`; `store.subsanar`, `store.anular` | `operativa.test.ts`, `integracion.test.ts` | ✅ |
 | Validaciones de negocio previas | Validaciones v1.2.2 §3.1.3 | `src/invoice/validate.ts` | `validate.test.ts` | ✅ |
 | NIF/NIE/CIF y NIF-IVA UE | Validaciones nota (1) | `src/nif.ts` | `nif.test.ts` | ✅ |
 | Numeración sin saltos ni duplicados, fechas coherentes | RD 1619/2012 art. 6 | `numbering.ts`; `store.emitir` (mutex + transacción + control optimista) | `numbering.test.ts`, `store.test.ts` (emisiones concurrentes) | ✅ |
@@ -41,3 +41,7 @@ Fase actual: **3 (diseño y PDF)**. Servidor y VERI*FACTU en la fase 5.
 | RGPD: acceso y supresión compatibles con la conservación | RGPD art. 15, 17.3.b | `store.anonimizarTercero`, `exportarDatosTercero`; explicación en Clientes | `store.test.ts` | ✅ |
 | Cifrado en reposo opcional | — | `db/secure.ts` (PBKDF2 600k + AES-256-GCM) | `store.test.ts` | ✅ |
 | Menciones obligatorias en factura (ISP, exención, rectificativa) | RD 1619/2012 art. 6.1.m, 15 | `pdf/src/generar.ts`, `DocumentoFactura.tsx` | `pdf.test.ts` | ✅ |
+| Cola persistente, reintentos y recuperación tras cierre | Orden 16 | `db/verifactu.ts`, `store.recuperarEnviosInterrumpidos` | `integracion.test.ts` | ✅ |
+| Gestión de respuestas: aceptado / con errores / rechazado, CSV, códigos oficiales | Validaciones 4; errores.properties | `aeat/response.ts`, `aeat/errores.ts`, `db/verifactu.ts` | `aeat.test.ts`, `integracion.test.ts` | ✅ |
+| Panel de estado de cada envío y de cada factura | Encargo | `client/pages/Envios.tsx`, `EstadoFactura.tsx` | `e2e/servidor.cjs` | ✅ |
+| Usuarios: argon2id, 2FA TOTP, roles, rate limiting, auditoría | Encargo §6 | `apps/server/src/usuarios.ts`, `app.ts` | `servidor.test.ts` | ✅ |

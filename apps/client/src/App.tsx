@@ -11,6 +11,8 @@ import Clientes from "./pages/Clientes";
 import Productos from "./pages/Productos";
 import Registro from "./pages/Registro";
 import Ajustes from "./pages/Ajustes";
+import Envios from "./pages/Envios";
+import Login from "./pages/Login";
 import { Logo } from "./ui/kit";
 
 function Rutas() {
@@ -19,6 +21,7 @@ function Rutas() {
   if (fase === "cargando") contenido = <div className="h-full flex items-center justify-center text-fg/80"><div className="animate-pulse"><Logo size={56} /></div></div>;
   else if (fase === "error") contenido = <div className="p-8 text-bad">No se pudo abrir la base de datos: {error}</div>;
   else if (fase === "bloqueada") contenido = <Bloqueada />;
+  else if (fase === "login") contenido = <Login />;
   else if (fase === "bienvenida") contenido = <Routes><Route path="*" element={<Bienvenida />} /></Routes>;
   else contenido = (
     <Routes>
@@ -31,6 +34,7 @@ function Rutas() {
         <Route path="productos" element={<Productos />} />
         <Route path="registro" element={<Registro />} />
         <Route path="ajustes" element={<Ajustes />} />
+        <Route path="envios" element={<Envios />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>);

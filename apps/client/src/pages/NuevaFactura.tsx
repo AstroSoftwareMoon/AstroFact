@@ -69,9 +69,12 @@ export default function NuevaFactura() {
     setBusy(true); setErrEmit(undefined);
     try {
       const f = await store.emitir(o.id, serieId!, b);
-      toast(`Factura ${f.numSerie} emitida y registro firmado`);
+      toast(o.modo === "verifactu" ? `Factura ${f.numSerie} emitida: registro en cola de envío a la AEAT` : `Factura ${f.numSerie} emitida y registro firmado`);
       nav(`/facturas/${f.id}`, { replace: true });
-    } catch (e) { setErrEmit(e instanceof ErrorValidacion ? e.incidencias.map((i) => i.mensaje).join(" · ") : (e as Error).message); }
+    } catch (e) {
+      const inc = e instanceof ErrorValidacion ? e.incidencias : (e as { incidencias?: { nivel: string; mensaje: string }[] }).incidencias;
+      setErrEmit(inc?.length ? inc.filter((i) => i.nivel === "error").map((i) => i.mensaje).join(" · ") : (e as Error).message);
+    }
     finally { setBusy(false); }
   }
 
@@ -149,10 +152,10 @@ export default function NuevaFactura() {
       </div>
 
       <Modal abierto={confirmar} onClose={() => setConfirmar(false)} titulo="¿Emitir la factura?">
-        <p className="text-sm text-muted">Se asignará el número definitivo, se generará el <b className="text-fg">registro de facturación</b> encadenado con huella SHA-256 y se firmará con tu certificado. Una factura emitida <b className="text-fg">no se puede modificar ni borrar</b>: solo rectificar o anular.</p>
+        <p className="text-sm text-muted">Se asignará el número definitivo y se generará el <b className="text-fg">registro de facturación</b> encadenado con huella SHA-256, que {o.modo === "verifactu" ? <>se <b className="text-fg">enviará automáticamente a la AEAT</b></> : "se firmará con tu certificado"}. Una factura emitida <b className="text-fg">no se puede modificar ni borrar</b>: solo rectificar o anular.</p>
         {totales && <p className="mt-4 text-2xl font-semibold tabular-nums">{euros(totales.importeTotal.toFixed(2))}</p>}
         {errEmit && <p className="mt-3 text-sm text-bad" role="alert">{errEmit}</p>}
-        <div className="flex justify-end gap-2 mt-6"><button className="btn-ghost" onClick={() => setConfirmar(false)}>Revisar</button><button className="btn-primary" onClick={emitir} disabled={busy} data-testid="confirmar-emision">{busy ? "Firmando…" : "Emitir y firmar"}</button></div>
+        <div className="flex justify-end gap-2 mt-6"><button className="btn-ghost" onClick={() => setConfirmar(false)}>Revisar</button><button className="btn-primary" onClick={emitir} disabled={busy} data-testid="confirmar-emision">{busy ? "Emitiendo…" : o.modo === "verifactu" ? "Emitir" : "Emitir y firmar"}</button></div>
       </Modal>
       <Modal abierto={nuevoCli} onClose={() => setNuevoCli(false)} titulo="Nuevo cliente" ancho="max-w-2xl">
         <FormTercero onGuardado={(c) => { setNuevoCli(false); elegirCliente(c.id); }} onCancel={() => setNuevoCli(false)} />

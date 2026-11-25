@@ -6,6 +6,8 @@ import avisoLegal from "../../../../docs/aviso-legal.md?raw";
 import { useApp } from "../state/app";
 import EditorPlantilla from "../components/EditorPlantilla";
 import Actualizaciones from "../components/Actualizaciones";
+import { GestionUsuarios, MiCuenta } from "../components/CuentaServidor";
+import { verifactuLocalDisponible } from "../platform/transporte";
 import { Campo, Chip, Modal, Panel, Titulo } from "../ui/kit";
 import { fecha } from "../format";
 
@@ -41,7 +43,7 @@ export default function Ajustes() {
           </div>
           <div className="flex items-center justify-between mt-4">
             <div className="flex gap-1.5"><Chip tono="acc">No VERI*FACTU</Chip><Chip tono={o.entorno === "pruebas" ? "warn" : "ok"}>{o.entorno}</Chip></div>
-            <button className="btn-primary" onClick={() => accion(() => store.actualizarObligado(o.id, { nombre: neg.nombre, email: neg.email || undefined, iban: neg.iban || undefined, pieLegal: neg.pieLegal || undefined, direccion: { linea1: neg.linea1, cp: neg.cp, municipio: neg.municipio, provincia: neg.provincia, pais: neg.pais } }), "Datos guardados")}>Guardar</button>
+            <button className="btn-primary" onClick={() => accion(async () => store.actualizarObligado(o.id, { nombre: neg.nombre, email: neg.email || undefined, iban: neg.iban || undefined, pieLegal: neg.pieLegal || undefined, direccion: { linea1: neg.linea1, cp: neg.cp, municipio: neg.municipio, provincia: neg.provincia, pais: neg.pais } }), "Datos guardados")}>Guardar</button>
           </div>
         </Panel>
 
@@ -71,7 +73,7 @@ export default function Ajustes() {
           <div className="grid grid-cols-[90px_1fr_auto] gap-2 mt-4">
             <input className="input font-mono" placeholder="Código" value={serie.codigo} onChange={(e) => setSerie({ ...serie, codigo: e.target.value.toUpperCase() })} />
             <input className="input font-mono" value={serie.plantilla} onChange={(e) => setSerie({ ...serie, plantilla: e.target.value })} />
-            <button className="btn-ghost" disabled={!serie.codigo} onClick={() => accion(() => { store.crearSerie(o.id, { ...serie, reinicioAnual: true }); setSerie({ ...serie, codigo: "" }); }, "Serie creada")}><Plus size={16} /></button>
+            <button className="btn-ghost" disabled={!serie.codigo} onClick={() => accion(async () => { await store.crearSerie(o.id, { ...serie, reinicioAnual: true }); setSerie({ ...serie, codigo: "" }); }, "Serie creada")}><Plus size={16} /></button>
           </div>
         </Panel>
 
@@ -84,7 +86,7 @@ export default function Ajustes() {
               <button className={`btn-ghost flex-1 ${app.tema === "claro" ? "ring-2 ring-accent" : ""}`} onClick={() => app.setTema("claro")}><Sun size={16} />Claro</button></div></Campo>
           </div>
           <h3 className="font-medium mt-5 mb-2 flex items-center gap-2"><Lock size={16} />Cifrado de datos</h3>
-          {app.cifrada ? <p className="text-sm text-ok">Los datos de este dispositivo están cifrados (AES-256-GCM).</p> : (
+          {app.modo === "servidor" ? <p className="text-sm text-muted">En modo servidor los datos viven en tu servidor; protégelo con HTTPS y copias de seguridad del volumen <span className="font-mono">/data</span>.</p> : app.cifrada ? <p className="text-sm text-ok">Los datos de este dispositivo están cifrados (AES-256-GCM).</p> : (
             <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2">
               <input type="password" className="input" placeholder="Nueva contraseña" value={cif.a} onChange={(e) => setCif({ ...cif, a: e.target.value })} />
               <input type="password" className="input" placeholder="Repetir" value={cif.b} onChange={(e) => setCif({ ...cif, b: e.target.value })} />
@@ -93,7 +95,21 @@ export default function Ajustes() {
           <p className="text-xs text-muted mt-4">Número de instalación: <span className="font-mono">{store.sistemaInformatico().NumeroInstalacion}</span> · Versión {store.productor.Version}</p>
         </Panel>
 
+        <Panel>
+          <h2 className="font-semibold mb-1">Modalidad del sistema de facturación</h2>
+          {o.modo === "verifactu" ? (
+            <p className="text-sm text-muted">Funcionando como <b className="text-fg">VERI*FACTU</b>: cada registro se envía a la AEAT ({o.entorno === "pruebas" ? "entorno de PRUEBAS" : "producción"}). La renuncia solo puede hacerse con efectos al final del año natural (art. 17 Orden); se añadirá en una próxima versión.</p>
+          ) : (<>
+            <p className="text-sm text-muted">Funcionando como <b className="text-fg">No VERI*FACTU</b>: registros firmados y conservados {app.modo === "servidor" ? "en tu servidor" : "en este dispositivo"}, con registro de eventos.</p>
+            {(app.modo === "servidor" || verifactuLocalDisponible()) ? (
+              <button className="btn-ghost mt-3" disabled={!app.puede("propietario")} onClick={() => { if (confirm("¿Pasar a VERI*FACTU? Se registrará el evento de fin de funcionamiento como No VERI*FACTU y, desde ahora, cada nueva factura se enviará a la AEAT.")) void accion(() => store.activarVerifactu(o.id), "Ahora funcionas como VERI*FACTU"); }}>Pasar a VERI*FACTU</button>
+            ) : <p className="text-xs text-muted mt-2">Para VERI*FACTU usa la app de escritorio o un servidor: el navegador no puede usar tu certificado para conectar con la AEAT.</p>}
+          </>)}
+        </Panel>
+
         <Actualizaciones />
+        {app.modo === "servidor" && <MiCuenta />}
+        {app.modo === "servidor" && <GestionUsuarios />}
 
         <div className="lg:col-span-2" id="plantilla"><EditorPlantilla /></div>
 

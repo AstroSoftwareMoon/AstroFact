@@ -46,7 +46,7 @@ export default function EditorPlantilla() {
         <p className="text-xs text-muted">El QR tributario y sus textos tienen posición y tamaño fijos (art. 20–21 Orden HAC/1177/2024): ninguna plantilla los mueve.</p>
         {err && <p className="text-sm text-bad">{err}</p>}
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" onClick={() => { try { store.guardarPlantilla(o.id, p); toast("Plantilla guardada"); } catch (e) { setErr((e as Error).message); } }}>Guardar plantilla</button>
+          <button className="btn-primary" onClick={async () => { try { await store.guardarPlantilla(o.id, p); toast("Plantilla guardada"); } catch (e) { setErr((e as Error).message); } }}>Guardar plantilla</button>
           <button className="btn-ghost" onClick={async () => descargar("muestra-plantilla.pdf", await pdfDeFactura(muestra, o, p), "application/pdf")}><FileDown size={16} />PDF de muestra</button>
         </div>
       </Panel>

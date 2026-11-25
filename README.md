@@ -6,7 +6,7 @@
   <a href="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Licencia AGPL-3.0" src="https://img.shields.io/badge/licencia-AGPL--3.0-black">
   <img alt="VERI*FACTU" src="https://img.shields.io/badge/VERI*FACTU-y%20No%20VERI*FACTU-black">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-138%20%2B%20E2E-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-158%20%2B%202%20E2E-2ea44f">
   <img alt="Telemetría" src="https://img.shields.io/badge/telemetr%C3%ADa-cero-black">
 </p>
 
@@ -40,6 +40,14 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 <td><img src="docs/assets/app-panel.png" alt="Panel"><p align="center"><sub><b>Panel</b> · liquid glass, tema oscuro</sub></p></td>
 </tr>
 </table>
+
+### 🛰️ Modo servidor y VERI\*FACTU
+
+<table><tr>
+<td width="50%"><img src="docs/assets/srv-envios.png" alt="Panel de envíos a la AEAT"><p align="center"><sub><b>Envíos a la AEAT</b> · cola, estados, códigos oficiales, CSV y subsanación</sub></p></td>
+<td width="50%"><img src="docs/assets/srv-factura-verifactu.png" alt="Factura VERI*FACTU aceptada"><p align="center"><sub><b>Factura VERI\*FACTU</b> · leyenda bajo el QR y estado «Aceptada por la AEAT»</sub></p></td>
+</tr></table>
+<p align="center"><sub>Capturas generadas por el test E2E contra el <b>simulador</b> de la AEAT incluido (los CSV «SIM…» no son reales). Guía: <a href="docs/SERVIDOR.md">servidor</a> · <a href="docs/VERIFACTU.md">VERI*FACTU</a>.</sub></p>
 
 ### 🧾 Facturas PDF con tres plantillas
 
@@ -102,7 +110,7 @@ Los binarios pueden ir **sin firmar** mientras el proyecto no disponga de certif
 - [x] **Fase 2 — App local**: asistente de bienvenida, clientes (con RGPD), productos, emisión No VERI\*FACTU firmada con QR, anulaciones, rectificativas S/I, registro fiscal navegable, eventos, exportación por periodo, cifrado de datos. Base de datos con triggers de inmutabilidad. **E2E con Playwright.**
 - [x] **Fase 3 — Diseño y PDF**: PDF vectorial propio (pdf-lib) con plantillas Moderna/Clásica/Minimal, logo, color, notas y pie legal; multipágina con el QR solo en la primera; editor con vista previa; tema claro; transiciones; resumen de eventos al cerrar la ventana en Tauri. Tests que **escanean el QR** del PDF y miden su tamaño y posición.
 - [x] **Fase 4 — Empaquetado y releases**: workflow por etiqueta `v*` con Windows (.exe/.msi/portable), macOS universal, Linux (AppImage/.deb/.rpm), Android (.apk/.aab), imagen Docker multi-arch, PWA instalable sin conexión, `SHA256SUMS`, changelog automático y autoactualización firmada (opcional, desactivable). iOS preparado.
-- [ ] Fase 5 — Servidor Docker y envío VERI\*FACTU contra el entorno de pruebas
+- [x] **Fase 5 — Servidor y VERI\*FACTU**: servidor multiusuario (argon2id, 2FA, roles, rate limiting, auditoría), envío VERI\*FACTU con cola, control de flujo, reintentos, respuestas con códigos oficiales, subsanación y anulación según los cuadros oficiales, panel de envíos; VERI\*FACTU también en la app de escritorio. Probado de extremo a extremo contra un **simulador** propio con TLS de certificado de cliente ([detalles](docs/VERIFACTU.md)).
 - [ ] Fase 6 — Informes (303/130 como ayuda), gastos, recordatorios
 - [ ] Fase 7 — Documentación de cumplimiento y pulido
 
@@ -137,6 +145,7 @@ const qr = urlQr({ nif: registro.IDFactura.IDEmisorFactura, numSerie: registro.I
 - [Arquitectura y esquema de base de datos](docs/arquitectura.md)
 - [Normativa oficial utilizada (versiones y hashes)](docs/normativa/README.md) · [Puntos abiertos](docs/TODO-normativa.md)
 - [Plantilla de declaración responsable](docs/cumplimiento/declaracion-responsable.md)
+- [VERI\*FACTU: funcionamiento, simulador y pruebas](docs/VERIFACTU.md) · [Servidor autohospedado](docs/SERVIDOR.md) · [Publicar versiones](docs/RELEASES.md)
 
 ## ⚖️ Aviso legal
 

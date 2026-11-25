@@ -14,7 +14,7 @@ export function FormTercero({ inicial, onGuardado, onCancel }: { inicial?: Terce
   const nifR = t.nif ? validateNif(t.nif) : undefined;
   const d = t.direccion ?? {};
   return (
-    <form onSubmit={(e) => { e.preventDefault(); try { const r = store.guardarTercero(o.id, extranjero ? { ...t, nif: undefined } : { ...t, idOtro: undefined }); toast("Cliente guardado"); onGuardado(r); } catch (x) { setErr((x as Error).message); } }}>
+    <form onSubmit={async (e) => { e.preventDefault(); try { const r = await store.guardarTercero(o.id, extranjero ? { ...t, nif: undefined } : { ...t, idOtro: undefined }); toast("Cliente guardado"); onGuardado(r); } catch (x) { setErr((x as Error).message); } }}>
       <div className="grid sm:grid-cols-2 gap-4">
         <div className="sm:col-span-2"><Campo label="Nombre o razón social"><input className="input" autoFocus value={t.nombre} onChange={(e) => setT({ ...t, nombre: e.target.value })} required /></Campo></div>
         <label className="sm:col-span-2 flex items-center gap-2 text-sm"><input type="checkbox" checked={extranjero} onChange={(e) => setExtranjero(e.target.checked)} className="h-4 w-4" />Cliente extranjero (sin NIF español)</label>
@@ -65,8 +65,8 @@ export default function Clientes() {
         {rgpd && <>
           <p className="text-sm text-muted">El cliente puede pedir <b className="text-fg">acceso</b> a sus datos o su <b className="text-fg">supresión</b>. Pero la ley obliga a conservar las facturas y sus registros durante el plazo legal (art. 19 RD 1619/2012, art. 8 Orden HAC/1177/2024, y art. 17.3.b RGPD como excepción). Por eso AstroFact <b className="text-fg">anonimiza los datos de contacto</b> del cliente y <b className="text-fg">conserva intactas</b> las facturas emitidas.</p>
           <div className="flex flex-wrap justify-end gap-2 mt-6">
-            <button className="btn-ghost" onClick={() => descargar(`datos-${rgpd.nombre}.json`, JSON.stringify(store.exportarDatosTercero(rgpd.id), null, 2), "application/json")}><Download size={16} />Exportar sus datos</button>
-            <button className="btn-danger" onClick={() => { store.anonimizarTercero(rgpd.id); toast("Datos de contacto anonimizados; facturas conservadas"); setRgpd(null); }}>Anonimizar</button>
+            <button className="btn-ghost" onClick={async () => descargar(`datos-${rgpd.nombre}.json`, JSON.stringify(await store.exportarDatosTercero(rgpd.id), null, 2), "application/json")}><Download size={16} />Exportar sus datos</button>
+            <button className="btn-danger" onClick={async () => { await store.anonimizarTercero(rgpd.id); toast("Datos de contacto anonimizados; facturas conservadas"); setRgpd(null); }}>Anonimizar</button>
           </div>
         </>}
       </Modal>

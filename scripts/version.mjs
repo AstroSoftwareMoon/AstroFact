@@ -10,7 +10,7 @@ if (!/^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/.test(v ?? "")) { console.error("Uso: no
 const json = (f, fn) => { const o = JSON.parse(readFileSync(f, "utf8")); fn(o); writeFileSync(f, JSON.stringify(o, null, 2) + "\n"); console.log("✓", f); };
 const txt = (f, re, rep) => { const s = readFileSync(f, "utf8"); if (!re.test(s)) throw new Error(`Patrón no encontrado en ${f}`); writeFileSync(f, s.replace(re, rep)); console.log("✓", f); };
 
-for (const f of ["package.json", "packages/fiscal-core/package.json", "packages/db/package.json", "packages/pdf/package.json", "apps/client/package.json", "apps/server/package.json"])
+for (const f of ["package.json", "packages/fiscal-core/package.json", "packages/db/package.json", "packages/pdf/package.json", "packages/aeat-sim/package.json", "apps/client/package.json", "apps/server/package.json"])
   try { json(f, (o) => { o.version = v; }); } catch (e) { if (e.code !== "ENOENT") throw e; }
 json("apps/client/src-tauri/tauri.conf.json", (o) => { o.version = v; });
 txt("apps/client/src-tauri/Cargo.toml", /^version = ".*"$/m, `version = "${v}"`);
