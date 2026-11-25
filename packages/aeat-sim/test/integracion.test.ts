@@ -7,7 +7,7 @@ import { AstroFactStore, MotorVerifactu, type BorradorUI } from "@astrofact/db";
 import { nodeSqlite } from "@astrofact/db/node";
 import { transporteNode } from "@astrofact/db/transporte-node";
 import { arrancarSimulador } from "../src";
-import { crearPki } from "./pki";
+import { crearPki } from "../src/pki";
 
 const XSD = resolve(__dirname, "../../../docs/normativa/xsd");
 const hayXmllint = (() => { try { execFileSync("xmllint", ["--version"], { stdio: "ignore" }); return true; } catch { return false; } })();

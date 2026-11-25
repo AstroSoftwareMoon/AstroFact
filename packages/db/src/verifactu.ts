@@ -22,7 +22,7 @@ export interface Transporte { enviar(url: string, soap: string, cred: Credencial
 export type ResultadoTick =
   | { accion: "nada"; motivo: "modo" | "sin_pendientes" }
   | { accion: "esperar"; ms: number; motivo: "flujo" | "reintento" }
-  | { accion: "bloqueado"; motivo: "sin_certificado" }
+  | { accion: "bloqueado"; motivo: "sin_certificado" | "configuracion"; mensaje?: string }
   | { accion: "enviado"; envioId: number; estado: string; aceptados: number; conErrores: number; rechazados: number; tiempoEspera: number }
   | { accion: "error"; envioId: number; mensaje: string; reintentoEnMs?: number };
 
@@ -66,6 +66,8 @@ export class MotorVerifactu {
     const cred = this.store.credencialTransporte(obligadoId);
     if (!cred) return { accion: "bloqueado", motivo: "sin_certificado" };
 
+    let url: string;
+    try { url = this.url(o.entorno); } catch (e) { return { accion: "bloqueado", motivo: "configuracion", mensaje: (e as Error).message }; }
     const lote = this.store.pendientesEnvio(obligadoId, LIMITES.registrosPorEnvio);
     const soap = sobreSoap({ ObligadoEmision: { NombreRazon: o.nombre, NIF: o.nif } }, lote.map((l) => l.registro));
     const envioId = this.store.iniciarEnvio(obligadoId, lote.map((l) => l.id), soap);
@@ -80,7 +82,7 @@ export class MotorVerifactu {
     };
 
     let resp: { status: number; body: string };
-    try { resp = await this.transporte.enviar(this.url(o.entorno), soap, cred); }
+    try { resp = await this.transporte.enviar(url, soap, cred); }
     catch (e) { return fallo(`Error de conexión: ${(e as Error).message}`); }
     if (resp.status >= 500 && !/Fault/.test(resp.body)) return fallo(`HTTP ${resp.status}`, resp.body);
 

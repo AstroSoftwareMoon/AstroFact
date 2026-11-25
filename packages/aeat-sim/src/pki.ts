@@ -1,4 +1,4 @@
-/** PKI de pruebas: CA propia, certificado de servidor (localhost) y certificado de cliente en PKCS#12. */
+/** SOLO PRUEBAS. PKI de pruebas: CA propia, certificado de servidor (localhost) y certificado de cliente en PKCS#12. */
 import forge from "node-forge";
 
 function cert(subject: { name: string; value: string }[], issuer: { cert?: forge.pki.Certificate; key: forge.pki.rsa.PrivateKey } | null, opts: { ca?: boolean; dns?: string; bits?: number } = {}) {

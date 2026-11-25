@@ -17,10 +17,10 @@
   },
   "dependencies": {
     "@astrofact/fiscal-core": "workspace:*",
-    "@xmldom/xmldom": "^0.9.8"
+    "@xmldom/xmldom": "^0.9.8",
+    "node-forge": "^1.3.1"
   },
   "devDependencies": {
-    "node-forge": "^1.3.1",
     "@types/node-forge": "^1.3.11",
     "@astrofact/db": "workspace:*"
   }

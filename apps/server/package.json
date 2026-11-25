@@ -6,14 +6,23 @@
   "license": "AGPL-3.0-or-later",
   "description": "Servidor autohospedado de AstroFact (Fastify). Fase 4: sirve la PWA; fase 5: API multiusuario y envío VERI*FACTU.",
   "scripts": {
-    "build": "tsup src/index.ts --format esm --target node22 --clean",
+    "build": "tsup",
     "start": "node dist/index.js",
     "dev": "tsup src/index.ts --format esm --watch --onSuccess \"node dist/index.js\"",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.0.2"
+  },
+  "devDependencies": {
+    "@astrofact/aeat-sim": "workspace:*",
+    "node-forge": "^1.3.1",
     "@fastify/static": "^8.2.0",
-    "fastify": "^5.4.0"
+    "fastify": "^5.4.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "zod": "^3.25.0",
+    "@astrofact/db": "workspace:*",
+    "@astrofact/fiscal-core": "workspace:*"
   }
 }
