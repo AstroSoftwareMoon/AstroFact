@@ -4,11 +4,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 const f = process.argv[2];
 let s = readFileSync(f, "utf8");
 if (s.includes("signingConfigs")) { console.log("Firma ya configurada"); process.exit(0); }
-if (!s.includes("import java.io.FileInputStream")) s = `import java.io.FileInputStream\n` + s;
+// Imports al principio: con AGP 9 (newDsl), «java» dentro de android {} es la extensión Java, no el paquete
+for (const imp of ["import java.io.FileInputStream", "import java.util.Properties"]) if (!s.includes(imp)) s = `${imp}\n` + s;
 s = s.replace(/android\s*\{/, `android {
     signingConfigs {
         create("release") {
-            val props = java.util.Properties()
+            val props = Properties()
             val f = rootProject.file("keystore.properties")
             if (f.exists()) {
                 props.load(FileInputStream(f))
