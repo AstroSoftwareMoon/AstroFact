@@ -1,6 +1,6 @@
 {
   "name": "@astrofact/informes",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Informes fiscales orientativos (libros, IVA trimestral, pago fraccionado), hojas de cálculo, importación y Facturae.",
   "license": "AGPL-3.0-or-later",
   "type": "module",

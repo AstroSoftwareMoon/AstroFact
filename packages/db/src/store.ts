@@ -33,7 +33,7 @@ export interface ProductorSif {
 export const PRODUCTOR_POR_DEFECTO: ProductorSif = {
   // TODO(normativa #9): datos del productor pendientes de facilitar por el responsable del proyecto.
   NombreRazon: "ASTROFACT (PRODUCTOR PENDIENTE)", NIF: "89890001K", NombreSistemaInformatico: "AstroFact",
-  IdSistemaInformatico: "AF", Version: "0.8.0", TipoUsoPosibleSoloVerifactu: "N", TipoUsoPosibleMultiOT: "S",
+  IdSistemaInformatico: "AF", Version: "0.8.1", TipoUsoPosibleSoloVerifactu: "N", TipoUsoPosibleMultiOT: "S",
 };
 
 export interface Opciones { productor?: ProductorSif; ahora?: () => Date; onCambio?: () => void; }
