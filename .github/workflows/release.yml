@@ -11,7 +11,7 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
-      tag: { description: "Etiqueta existente a (re)publicar, p. ej. v0.4.0", required: true }
+      tag: { description: "Etiqueta a compilar, p. ej. v0.7.0 (si no existe, se crea en la rama elegida)", required: true }
 
 permissions:
   contents: write
@@ -39,7 +39,13 @@ jobs:
       release_id: ${{ steps.rel.outputs.id }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 0, ref: "${{ env.TAG }}" }
+        with: { fetch-depth: 0 }
+      - name: Crear la etiqueta si se lanzó a mano y no existe
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then git checkout -q "$TAG"; else
+            git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git tag -a "$TAG" -m "AstroFact $TAG" && git push origin "refs/tags/$TAG"; fi
       - id: v
         name: Comprobar versión
         run: |
