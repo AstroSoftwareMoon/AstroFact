@@ -63,6 +63,7 @@ export default function VerFactura() {
           </Panel>
           <Panel>
             <h2 className="font-semibold mb-3">Registros de facturación</h2>
+            {regs.length === 0 && <p className="text-sm text-muted">Factura emitida en modo «Solo facturas»: no tiene registro de facturación ni QR tributario.</p>}
             <ol className="space-y-3">{regs.map((r) => (
               <li key={r.id} className="rounded-2xl bg-glass/[.04] border border-line/10 p-3 text-xs">
                 <div className="flex items-center justify-between"><Chip tono={r.tipo === "alta" ? "acc" : "bad"}>{r.tipo === "alta" ? "Alta" : "Anulación"}</Chip>{r.firmado && <span className="flex items-center gap-1 text-ok"><CheckCircle2 size={13} />Firmado XAdES</span>}</div>

@@ -99,7 +99,7 @@ export default function NuevaFactura({ destino: destinoProp }: { destino?: Desti
         await store.guardarDocumento(o.id, { id: origen.id, clase: origen.clase, borrador: b, validez: origen.validez, notas: origen.notas });
         f = await store.facturarDocumentos(o.id, serieId!, [origen.id], { fechaExpedicion: b.fechaExpedicion, descripcionOperacion: b.descripcionOperacion });
       } else f = await store.emitir(o.id, serieId!, b);
-      toast(o.modo === "verifactu" ? `Factura ${f.numSerie} emitida: registro en cola de envío a la AEAT` : `Factura ${f.numSerie} emitida y registro firmado`);
+      toast(o.modo === "verifactu" ? `Factura ${f.numSerie} emitida: registro en cola de envío a la AEAT` : o.modo === "no_verifactu" ? `Factura ${f.numSerie} emitida y registro firmado` : `Factura ${f.numSerie} emitida`);
       nav(`/facturas/${f.id}`, { replace: true });
     } catch (e) {
       const inc = e instanceof ErrorValidacion ? e.incidencias : (e as { incidencias?: { nivel: string; mensaje: string }[] }).incidencias;
@@ -199,10 +199,12 @@ export default function NuevaFactura({ destino: destinoProp }: { destino?: Desti
       </div>
 
       <Modal abierto={confirmar} onClose={() => setConfirmar(false)} titulo="¿Emitir la factura?">
-        <p className="text-sm text-muted">Se asignará el número definitivo y se generará el <b className="text-fg">registro de facturación</b> encadenado con huella SHA-256, que {o.modo === "verifactu" ? <>se <b className="text-fg">enviará automáticamente a la AEAT</b></> : "se firmará con tu certificado"}. Una factura emitida <b className="text-fg">no se puede modificar ni borrar</b>: solo rectificar o anular.</p>
+        {o.modo === "sin_registros"
+          ? <p className="text-sm text-muted">Se asignará el número definitivo. Una factura emitida <b className="text-fg">no se puede modificar ni borrar</b>: solo rectificar o anular.</p>
+          : <p className="text-sm text-muted">Se asignará el número definitivo y se generará el <b className="text-fg">registro de facturación</b> encadenado con huella SHA-256, que {o.modo === "verifactu" ? <>se <b className="text-fg">enviará automáticamente a la AEAT</b></> : "se firmará con tu certificado"}. Una factura emitida <b className="text-fg">no se puede modificar ni borrar</b>: solo rectificar o anular.</p>}
         {totales && <p className="mt-4 text-2xl font-semibold tabular-nums">{euros(totales.importeTotal.toFixed(2))}</p>}
         {errEmit && <p className="mt-3 text-sm text-bad" role="alert">{errEmit}</p>}
-        <div className="flex justify-end gap-2 mt-6"><button className="btn-ghost" onClick={() => setConfirmar(false)}>Revisar</button><button className="btn-primary" onClick={emitir} disabled={busy} data-testid="confirmar-emision">{busy ? "Emitiendo…" : o.modo === "verifactu" ? "Emitir" : "Emitir y firmar"}</button></div>
+        <div className="flex justify-end gap-2 mt-6"><button className="btn-ghost" onClick={() => setConfirmar(false)}>Revisar</button><button className="btn-primary" onClick={emitir} disabled={busy} data-testid="confirmar-emision">{busy ? "Emitiendo…" : o.modo === "no_verifactu" ? "Emitir y firmar" : "Emitir"}</button></div>
       </Modal>
       <Modal abierto={nuevoCli} onClose={() => setNuevoCli(false)} titulo="Nuevo cliente" ancho="max-w-2xl">
         <FormTercero onGuardado={(c) => { setNuevoCli(false); elegirCliente(c.id); }} onCancel={() => setNuevoCli(false)} />

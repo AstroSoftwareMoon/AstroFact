@@ -10,6 +10,6 @@ export function facturaMuestra(o: Obligado): Factura {
   };
   const t = calcularTotales(datos);
   return { id: 0, obligadoId: o.id, serieId: 0, numero: 1, numSerie: datos.numSerie, fechaExpedicion: datos.fechaExpedicion, tipoFactura: "F1", datos, totales: totalesAJson(t),
-    qrUrl: urlQr({ nif: o.nif, numSerie: datos.numSerie, fechaExpedicion: "01-01-2026", importeTotal: t.importeTotal.toFixed(2) }, { entorno: "pruebas", verifactu: o.modo === "verifactu" }),
-    dePruebas: true, estadoCobro: "pendiente", anulada: false, emitidaEn: new Date().toISOString() };
+    qrUrl: o.modo === "sin_registros" ? "" : urlQr({ nif: o.nif, numSerie: datos.numSerie, fechaExpedicion: "01-01-2026", importeTotal: t.importeTotal.toFixed(2) }, { entorno: "pruebas", verifactu: o.modo === "verifactu" }),
+    dePruebas: o.modo !== "sin_registros", estadoCobro: "pendiente", anulada: false, emitidaEn: new Date().toISOString() };
 }

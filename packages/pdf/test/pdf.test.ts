@@ -7,7 +7,7 @@ import { PNG } from "pngjs";
 import jsQR from "jsqr";
 import type { FacturaBorrador } from "@astrofact/fiscal-core";
 import { datos } from "./muestra";
-import { generarFacturaPdf, type DatosPdf, type Estilo } from "../src";
+import { ESTILOS, generarFacturaPdf, type DatosPdf } from "../src";
 
 const DPI = 300;
 const herramientas = (() => { try { execFileSync("pdftoppm", ["-v"], { stdio: "ignore" }); return true; } catch { return false; } })();
@@ -23,7 +23,7 @@ const texto = (f: string) => execFileSync("pdftotext", ["-layout", f, "-"]).toSt
 const paginas = (f: string) => Number(/Pages:\s+(\d+)/.exec(execFileSync("pdfinfo", [f]).toString())![1]);
 
 describe.skipIf(!herramientas)("Factura PDF", () => {
-  for (const estilo of ["moderna", "clasica", "minimal"] as Estilo[]) {
+  for (const estilo of ESTILOS.map((e) => e.id)) {
     it(`QR legible, URL exacta, 30–40 mm, arriba y centrado — plantilla ${estilo}`, async () => {
       const dd = datos();
       const { d, f } = guardar(await generarFacturaPdf(dd, { estilo, colorAcento: "#00A3FF" }));
@@ -82,6 +82,17 @@ describe.skipIf(!herramientas)("Factura PDF", () => {
     expect(txt).toContain("Gracias por tu confianza.");
     expect(txt).toContain("ES91 2100 0418");
     expect(execFileSync("pdftotext", ["-raw", f, "-"]).toString().replace(/\s+/g, "")).toContain("PRUEBAS-SINVALIDEZ");
+  });
+
+  it("modo «solo facturas» (sin registros): sin QR ni textos tributarios", async () => {
+    const dd = { ...datos({}, "sin_registros"), qrUrl: "" };
+    for (const { id } of ESTILOS) {
+      const { d, f } = guardar(await generarFacturaPdf(dd, { estilo: id }));
+      expect(escanear(paginaPng(f, d, 1))).toBeNull();
+      const txt = texto(f);
+      expect(txt).not.toContain("QR tributario");
+      for (const s of ["Estudio Lunar SL", "A-2026-0042", "Total a pagar", "667,80 €"]) expect(txt).toContain(s);
+    }
   });
 
   it("logo inválido no rompe la generación", async () => {

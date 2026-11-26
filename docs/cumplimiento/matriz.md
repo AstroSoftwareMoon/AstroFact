@@ -53,5 +53,6 @@ Fase actual: **5 (servidor y VERI*FACTU)**.
 | Facturae 3.2.2 conforme al esquema oficial (módulo opcional, desactivado por defecto) | Orden HAP/1650/2015; XSD Facturae 3.2.2 | `informes/src/facturae.ts` | `informes.test.ts` (xmllint) | 🟡 sin firma (TODO #14) |
 | Importación de clientes/productos con validación de NIF | RD 1065/2007 (NIF) | `informes/src/importar.ts`, `Importar.tsx` | `informes.test.ts`, `e2e/run.cjs` | ✅ |
 | Copias de seguridad cifradas que no rompen la trazabilidad; restauración registrada (evento 07) | Orden 8; EventosSIF (TipoEvento 07) | `db/src/copia.ts`, `server/src/restaurar.ts`, `Copias.tsx` | `copia.test.ts`, `servidor.test.ts`, `e2e/run.cjs` | ✅ (TODO #17) |
-| Fechas de obligatoriedad configurables | RD 1007/2023 DF 4.ª; encargo | `fiscal-core/constants.ts`, `Cumplimiento.tsx` | revisión | ✅ |
+| Fechas de obligatoriedad configurables (sin fecha fija desde el RDL 43/2026) | RD 1007/2023 DF 4.ª (red. RDL 43/2026); RD 238/2026 DF 4.ª.1.b | `fiscal-core/constants.ts` (`OBLIGATORIEDAD`), `Cumplimiento.tsx` | revisión | ✅ (TODO #18) |
+| Modo «Solo facturas» para quien no está obligado; paso sin vuelta atrás a un sistema de registros | RD 1007/2023 art. 3 y DF 4.ª | `db/store.ts` (`sin_registros`, `activarRegistros`), `Bienvenida.tsx`, `Ajustes.tsx` | `modalidad.test.ts`, `e2e/solo-facturas.cjs` | ✅ (TODO #19) |
 

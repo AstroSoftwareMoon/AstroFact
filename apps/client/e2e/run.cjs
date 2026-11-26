@@ -40,6 +40,7 @@ async function esperarServidor(url, ms = 30000) {
     await page.getByPlaceholder("12345678Z").fill("89890001K");
     await page.getByPlaceholder("Mi Negocio SL").fill("Estudio Lunar SL");
     await page.getByPlaceholder("Calle, número").fill("C/ de la Luna 7");
+    await page.getByTestId("modalidad-no-verifactu").click();
     await shot("app-negocio");
     await page.getByRole("button", { name: "Siguiente" }).click();
     await page.getByRole("button", { name: "Siguiente" }).click();

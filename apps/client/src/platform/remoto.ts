@@ -14,7 +14,7 @@ export interface UsuarioServidor { id: number; email: string; nombre?: string; r
 /** Escrituras que se ejecutan en el servidor (deben coincidir con apps/server/src/rpc.ts). */
 const ESCRITURAS = new Set(["exportarDatosTercero", "guardarTercero", "guardarProducto", "archivarProducto", "emitir", "anular", "subsanar", "marcarCobro",
   "verificarIntegridad", "exportarRegistros", "exportarEventos", "crearObligado", "actualizarObligado", "crearSerie", "anonimizarTercero",
-  "guardarPlantilla", "guardarCertificado", "generarCertificadoPruebas", "desbloquearCertificado", "activarVerifactu", "envioDetalle",
+  "guardarPlantilla", "guardarCertificado", "generarCertificadoPruebas", "desbloquearCertificado", "activarVerifactu", "activarRegistros", "envioDetalle",
   "adjuntoDatos", "guardarGasto", "eliminarGasto", "marcarGastoPagado", "anadirAdjunto", "eliminarAdjunto", "guardarDocumento", "cambiarEstadoDocumento",
   "convertirEnAlbaran", "facturarDocumentos", "guardarRecurrencia", "procesarRecurrentes", "registrarCobro", "eliminarCobro", "registrarRecordatorio",
   "importarMovimientos", "conciliar"]);

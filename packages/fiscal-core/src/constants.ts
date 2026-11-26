@@ -184,10 +184,17 @@ export const LIMITES = {
 } as const;
 
 /**
- * Fechas de obligatoriedad (Disposición final cuarta RD 1007/2023, texto consolidado
- * con última modificación 03/12/2025). CONFIGURABLES: revísense ante cambios normativos.
+ * Obligatoriedad (Disposición final cuarta RD 1007/2023, redacción dada por la DF 1.ª del Real
+ * Decreto-ley 43/2026, BOE 25/11/2026, en vigor el 26/11/2026): los obligados del art. 3.1 deben tener
+ * adaptados sus sistemas «cuando se produzca el transcurso del plazo previsto en la letra b) del apartado 1
+ * de la disposición final cuarta del Real Decreto 238/2026», es decir, 24 meses después de la entrada en
+ * vigor de la orden ministerial de su DF 3.ª.1. Esa fecha NO está fijada en el texto: no se inventa
+ * (TODO(normativa #18)). La app permite al usuario indicarla cuando se conozca.
+ * Antes (redacción del RDL 15/2025) eran el 01/01/2027 (IS) y el 01/07/2027 (resto); ya no están vigentes.
  */
-export const FECHAS_OBLIGATORIEDAD_DEFECTO = {
-  contribuyentesIS: "2027-01-01",
-  restoObligados: "2027-07-01",
+export const OBLIGATORIEDAD = {
+  fecha: null as string | null,
+  mesesTrasOrden: 24,
+  referencia: "DF 4.ª RD 1007/2023 (redacción RDL 43/2026) → DF 4.ª.1.b RD 238/2026",
+  anterior: { contribuyentesIS: "2027-01-01", restoObligados: "2027-07-01", norma: "RDL 15/2025 (derogada por el RDL 43/2026)" },
 } as const;

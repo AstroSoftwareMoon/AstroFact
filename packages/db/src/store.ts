@@ -33,7 +33,7 @@ export interface ProductorSif {
 export const PRODUCTOR_POR_DEFECTO: ProductorSif = {
   // TODO(normativa #9): datos del productor pendientes de facilitar por el responsable del proyecto.
   NombreRazon: "ASTROFACT (PRODUCTOR PENDIENTE)", NIF: "89890001K", NombreSistemaInformatico: "AstroFact",
-  IdSistemaInformatico: "AF", Version: "0.7.0", TipoUsoPosibleSoloVerifactu: "N", TipoUsoPosibleMultiOT: "S",
+  IdSistemaInformatico: "AF", Version: "0.8.0", TipoUsoPosibleSoloVerifactu: "N", TipoUsoPosibleMultiOT: "S",
 };
 
 export interface Opciones { productor?: ProductorSif; ahora?: () => Date; onCambio?: () => void; }
@@ -116,6 +116,7 @@ export class AstroFactStore {
   }
   guardarPlantilla(obligadoId: number, p: PlantillaGuardada) {
     if (!/^#[0-9a-fA-F]{6}$/.test(p.colorAcento)) throw new Error("Color no válido");
+    if (!["moderna", "clasica", "minimal", "elegante", "creativa", "corporativa", "nordica", "tecnica"].includes(p.estilo)) throw new Error("Estilo de plantilla no válido");
     if (p.logoB64 && p.logoB64.length > 700_000) throw new Error("El logo es demasiado grande (máx. 500 KB)");
     this.setMeta(`plantilla:${obligadoId}`, JSON.stringify(p));
     this.auditar("plantilla.guardar", { obligadoId, estilo: p.estilo });
@@ -274,7 +275,7 @@ export class AstroFactStore {
     return toIsoWithOffset(now, this.tz(o));
   }
   private exigirCredencial(o: Obligado): Credencial | undefined {
-    if (o.modo === "verifactu") return undefined;
+    if (o.modo !== "no_verifactu") return undefined;
     const c = this.credenciales.get(o.id);
     if (!c) throw new Error("Para emitir en modo No VERI*FACTU hay que firmar los registros: desbloquea tu certificado electrónico.");
     return c;
@@ -294,14 +295,21 @@ export class AstroFactStore {
       const inc = validarFactura(borrador, this.hoy(obligadoId));
       if (inc.some((i) => i.nivel === "error")) throw new ErrorValidacion(inc);
 
-      const { ultimo, penultimo } = this.ultimoRegistro(obligadoId);
-      const pre = comprobarAntesDeGenerar(ultimo, penultimo, this.ahora());
-      if (!pre.ok) { this.abrirAlarma(obligadoId, "cadena", pre.motivo!); throw new Error(`No se puede generar el registro: ${pre.motivo}`); }
-      const fechaHoraGen = this.fechaHoraGen(obligadoId, ultimo?.registro.FechaHoraHusoGenRegistro);
-      const { registro, totales } = construirRegistroAlta({ factura: borrador, sistema: this.sistemaInformatico(), anterior: ultimo ? cabezaDe(ultimo) : null, fechaHoraGen });
-      let xml = registroAltaXml(registro);
-      if (cred) xml = await firmarRegistroXml(xml, cred, this.ahora());
-      const qr = urlQr({ nif: o.nif, numSerie: sig.numSerie, fechaExpedicion: isoDateToAeat(fechaExp), importeTotal: registro.ImporteTotal }, { entorno: o.entorno, verifactu: o.modo === "verifactu" });
+      // Modalidad «solo facturas»: la factura no genera registro de facturación, QR ni firma.
+      let registro: ReturnType<typeof construirRegistroAlta>["registro"] | undefined, xml = "", fechaHoraGen = "", qr = "";
+      let ultimo: ReturnType<AstroFactStore["ultimoRegistro"]>["ultimo"] = null;
+      let totales = calcularTotales(borrador);
+      if (o.modo !== "sin_registros") {
+        const u = this.ultimoRegistro(obligadoId); ultimo = u.ultimo;
+        const pre = comprobarAntesDeGenerar(u.ultimo, u.penultimo, this.ahora());
+        if (!pre.ok) { this.abrirAlarma(obligadoId, "cadena", pre.motivo!); throw new Error(`No se puede generar el registro: ${pre.motivo}`); }
+        fechaHoraGen = this.fechaHoraGen(obligadoId, ultimo?.registro.FechaHoraHusoGenRegistro);
+        const r = construirRegistroAlta({ factura: borrador, sistema: this.sistemaInformatico(), anterior: ultimo ? cabezaDe(ultimo) : null, fechaHoraGen });
+        registro = r.registro; totales = r.totales;
+        xml = registroAltaXml(registro);
+        if (cred) xml = await firmarRegistroXml(xml, cred, this.ahora());
+        qr = urlQr({ nif: o.nif, numSerie: sig.numSerie, fechaExpedicion: isoDateToAeat(fechaExp), importeTotal: registro.ImporteTotal }, { entorno: o.entorno, verifactu: o.modo === "verifactu" });
+      }
       const tj = totalesAJson(totales);
 
       const facturaId = tx(this.db, () => {
@@ -314,14 +322,14 @@ export class AstroFactStore {
           [obligadoId, serieId, sig.numero, sig.numSerie, fechaExp, borrador.fechaOperacion ?? null, borrador.tipoFactura, borrador.rectificacion?.tipo ?? null,
             b.terceroId ?? null, JSON.stringify(borrador), JSON.stringify(tj), tj.baseTotal, tj.cuotaTotal, tj.importeTotal, tj.retencion, tj.totalAPagar, qr,
             o.entorno === "pruebas" || certInfo?.dePruebas ? 1 : 0, b.vencimiento ?? null, this.nowIso()]).lastInsertRowid;
-        this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado, estado_aeat, situacion)
+        if (registro) this.db.run(`INSERT INTO registro_facturacion (obligado_id, factura_id, tipo, num_serie, fecha_expedicion, fecha_hora_gen, huella, huella_anterior, registro_json, xml, firmado, estado_aeat, situacion)
           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`, [obligadoId, fid, "alta", sig.numSerie, fechaExp, fechaHoraGen, registro.Huella,
           ultimo ? ultimo.registro.Huella : null, JSON.stringify(registro), xml, cred ? 1 : 0, o.modo === "verifactu" ? "pendiente" : null, "nuevo"]);
         // Rectificativa: enlaza la(s) original(es)
         for (const r of borrador.rectificacion?.facturas ?? []) {
           this.db.run("UPDATE factura SET rectificada_por = ? WHERE obligado_id = ? AND num_serie = ? AND rectificada_por IS NULL", [fid, obligadoId, r.NumSerieFactura]);
         }
-        this.auditar("factura.emitir", { id: fid, numSerie: sig.numSerie, huella: registro.Huella });
+        this.auditar("factura.emitir", { id: fid, numSerie: sig.numSerie, huella: registro?.Huella ?? null });
         return fid;
       });
       this.cambiado();
@@ -335,6 +343,11 @@ export class AstroFactStore {
       const f = this.factura(facturaId); if (!f) throw new Error("Factura inexistente");
       if (f.anulada) throw new Error("La factura ya está anulada");
       const o = this.obligado(f.obligadoId)!;
+      if (!this.registrosFactura(f.id).length) {
+        // Factura emitida en «solo facturas» (sin registro): se marca como anulada y se conserva.
+        tx(this.db, () => { this.db.run("UPDATE factura SET anulada = 1 WHERE id = ?", [f.id]); this.auditar("factura.anular", { id: f.id, motivo, sinRegistro: true }); });
+        this.cambiado(); return;
+      }
       const cred = this.exigirCredencial(o);
       // VERI*FACTU: si el alta nunca llegó a registrarse en la AEAT → «anulación sin registro previo» (cuadro B)
       let situacion: "normal" | "sin_registro_previo" = "normal";
@@ -406,9 +419,23 @@ export class AstroFactStore {
   async activarVerifactu(obligadoId: number) {
     const o = this.obligado(obligadoId)!;
     if (o.modo === "verifactu") return;
-    await this.registrarEvento(obligadoId, "02");
+    if (o.modo === "no_verifactu") await this.registrarEvento(obligadoId, "02");
     this.db.run("UPDATE obligado SET modo = 'verifactu' WHERE id = ?", [obligadoId]);
     this.auditar("obligado.modo", { obligadoId, modo: "verifactu" });
+    this.cambiado();
+  }
+
+  /**
+   * De «solo facturas» a No VERI*FACTU. Sin vuelta atrás: desde aquí cada factura genera su registro
+   * encadenado y firmado. Exige el certificado desbloqueado.
+   */
+  async activarRegistros(obligadoId: number) {
+    const o = this.obligado(obligadoId)!;
+    if (o.modo !== "sin_registros") return;
+    if (!this.credenciales.get(obligadoId)) throw new Error("Para usar No VERI*FACTU hay que firmar los registros: configura y desbloquea tu certificado electrónico.");
+    this.db.run("UPDATE obligado SET modo = 'no_verifactu' WHERE id = ?", [obligadoId]);
+    this.auditar("obligado.modo", { obligadoId, modo: "no_verifactu" });
+    await this.arranque(obligadoId);   // evento de inicio del funcionamiento como No VERI*FACTU
     this.cambiado();
   }
 

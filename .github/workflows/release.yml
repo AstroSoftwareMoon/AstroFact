@@ -120,6 +120,7 @@ jobs:
           fi
           if [ "$RUNNER_OS" = "Windows" ]; then echo "::warning::Windows sin firma de código: SmartScreen puede avisar la primera vez."; fi
       - uses: tauri-apps/tauri-action@v0
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
         with:
           projectPath: apps/client
           tauriScript: pnpm tauri
@@ -150,6 +151,7 @@ jobs:
       - uses: actions/setup-java@v4
         with: { distribution: temurin, java-version: "17" }
       - uses: android-actions/setup-android@v3
+        with: { packages: "platform-tools" }   # el paquete «tools» por defecto ya no existe en el SDK
       - name: NDK
         run: |
           sdkmanager --install "ndk;27.2.12479018" "platforms;android-34" "build-tools;34.0.0"

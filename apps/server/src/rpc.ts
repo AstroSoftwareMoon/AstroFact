@@ -20,7 +20,7 @@ export const METODOS: Readonly<Record<string, Rol>> = Object.freeze({
   // propietario: configuración, datos fiscales del negocio y certificado
   crearObligado: "propietario", actualizarObligado: "propietario", crearSerie: "propietario", anonimizarTercero: "propietario",
   guardarPlantilla: "propietario", guardarCertificado: "propietario", generarCertificadoPruebas: "propietario",
-  desbloquearCertificado: "propietario", activarVerifactu: "propietario",
+  desbloquearCertificado: "propietario", activarVerifactu: "propietario", activarRegistros: "propietario",
 });
 /** Rol requerido, solo para métodos propios de la lista blanca (nada de la cadena de prototipos). */
 export const rolDe = (m: string): Rol | undefined => (Object.hasOwn(METODOS, m) ? METODOS[m] : undefined);

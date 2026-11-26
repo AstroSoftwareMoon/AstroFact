@@ -6,7 +6,7 @@
   <a href="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Licencia AGPL-3.0" src="https://img.shields.io/badge/licencia-AGPL--3.0-black">
   <img alt="VERI*FACTU" src="https://img.shields.io/badge/VERI*FACTU-y%20No%20VERI*FACTU-black">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-187%20%2B%202%20E2E-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-195%20%2B%203%20E2E-2ea44f">
   <img alt="Telemetría" src="https://img.shields.io/badge/telemetr%C3%ADa-cero-black">
 </p>
 
@@ -49,13 +49,16 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 </tr></table>
 <p align="center"><sub>Capturas generadas por el test E2E contra el <b>simulador</b> de la AEAT incluido (los CSV «SIM…» no son reales). Guía: <a href="docs/SERVIDOR.md">servidor</a> · <a href="docs/VERIFACTU.md">VERI*FACTU</a>.</sub></p>
 
-### 🧾 Facturas PDF con tres plantillas
+### 🧾 Ocho plantillas de factura
 
-<p align="center"><img src="docs/assets/pdf-plantillas.png" alt="Plantillas Moderna, Clásica (VERI*FACTU) y Minimal" width="100%"></p>
+<p align="center"><img src="docs/assets/pdf-plantillas.png" alt="Plantillas Moderna, Clásica, Minimal, Elegante, Creativa, Corporativa, Nórdica y Técnica" width="100%"></p>
+<p align="center"><sub>Moderna · Clásica · Minimal · Elegante · Creativa · Corporativa · Nórdica · Técnica — con tu logo y tu color. PDF vectorial, multipágina.</sub></p>
+
+<p align="center"><img src="docs/assets/app-solo-facturas.png" alt="Modo Solo facturas en el asistente" width="80%"><br><sub><b>Solo facturas</b>: empieza a facturar sin certificado ni registros; activa VERI*FACTU cuando te toque.</sub></p>
 <p align="center"><sub>PDF vectorial: <b>Moderna</b>, <b>Clásica</b> (con la leyenda VERI*FACTU) y <b>Minimal</b>. Logo, color, notas y pie legal personalizables. El QR tributario se genera a 35 mm, arriba y centrado, y <b>los tests lo escanean</b> en cada versión. <a href="docs/assets/factura-ejemplo.pdf">Ver un PDF de ejemplo</a>.</sub></p>
 
 <table><tr>
-<td width="55%"><img src="docs/assets/app-plantilla.png" alt="Editor de plantillas con vista previa"></td>
+<td width="55%"><img src="docs/assets/app-plantillas.png" alt="Editor con las 8 plantillas y vista previa"></td>
 <td width="45%"><img src="docs/assets/app-claro.png" alt="Tema claro"><p align="center"><sub>Tema claro con el mismo lenguaje liquid glass</sub></p></td>
 </tr></table>
 
@@ -89,6 +92,8 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 
 | | |
 |---|---|
+| ✨ **Solo facturas, sin complicaciones** | Si aún no estás obligado a VERI\*FACTU (hoy no hay fecha fija), haz facturas bonitas sin certificado ni registros. Cuando te toque, lo activas con un clic. |
+| 🎨 **8 plantillas** | Moderna, Clásica, Minimal, Elegante, Creativa, Corporativa, Nórdica y Técnica, con tu logo y tu color. |
 | 🧾 **Facturas completas, simplificadas y rectificativas** | Por sustitución y por diferencias, varios tipos de IVA, recargo de equivalencia, retención IRPF, exentas, inversión del sujeto pasivo, IGIC e IPSI. |
 | 🔗 **Registros encadenados con huella SHA-256** | Nunca se borra ni edita nada emitido. Botón para verificar la cadena y alarma si se rompe. |
 | 📱 **QR tributario** | Generado según la especificación oficial (nivel M, 30–40 mm, «QR tributario:» y leyenda VERI\*FACTU). |

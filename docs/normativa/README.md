@@ -12,7 +12,9 @@ utilizadas, su versión y su huella SHA-256 en el momento de la descarga (**22/1
 
 | Norma | Versión consultada | Enlace |
 |---|---|---|
-| Real Decreto 1007/2023, de 5 de diciembre — Reglamento de requisitos de los sistemas informáticos de facturación (RRSIF) | Texto consolidado, última modificación 03/12/2025 | https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840 |
+| Real Decreto 1007/2023, de 5 de diciembre — Reglamento de requisitos de los sistemas informáticos de facturación (RRSIF) | Texto consolidado, **última modificación 25/11/2026** (RDL 43/2026: DF 4.ª, obligatoriedad) · copia en `boe/` · SHA-256 `ca28ff86d659…` | https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840 |
+| Real Decreto-ley 43/2026, de 24 de noviembre — DF 1.ª modifica la DF 4.ª del RD 1007/2023 | BOE 25/11/2026, en vigor 26/11/2026 · copia en `boe/` · SHA-256 `f3c082ba0051…` | https://www.boe.es/buscar/doc.php?id=BOE-A-2026-24701 |
+| Real Decreto 238/2026, de 25 de marzo — factura electrónica obligatoria entre empresarios (DF 4.ª.1.b: 24 meses tras la orden ministerial) | Texto consolidado · copia en `boe/` · SHA-256 `fa3fa56c45b0…` | https://www.boe.es/buscar/act.php?id=BOE-A-2026-7295 |
 | Orden HAC/1177/2024, de 17 de octubre — especificaciones técnicas, funcionales y de contenido | Texto consolidado, sin modificaciones | https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138 |
 | Real Decreto 1619/2012 — Reglamento de obligaciones de facturación | (referencia) | https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696 |
 | Real Decreto 439/2007 — Reglamento del IRPF (arts. 30.2.ª y 110: pago fraccionado, modelo 130) | Texto consolidado, última modificación 25/11/2026 · SHA-256 `0df90a92c256…` | https://www.boe.es/buscar/act.php?id=BOE-A-2007-6820 |

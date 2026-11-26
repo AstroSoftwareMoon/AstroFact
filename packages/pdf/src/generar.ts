@@ -8,7 +8,7 @@
  */
 import { PDFDocument, StandardFonts, degrees, rgb, type PDFFont, type PDFPage, type RGB } from "pdf-lib";
 import { matrizQr, QR_LAYOUT, TIPO_FACTURA, type TipoFactura } from "@astrofact/fiscal-core";
-import { PLANTILLA_DEFECTO, type DatosPdf, type Plantilla } from "./types";
+import { PLANTILLA_DEFECTO, TEMAS, type DatosPdf, type Plantilla, type Tema } from "./types";
 
 export const MM = 72 / 25.4;
 const A4 = { w: 595.28, h: 841.89 };
@@ -50,7 +50,9 @@ function partir(f: PDFFont, size: number, texto: string, ancho: number): string[
   return out;
 }
 
-interface Ctx { doc: PDFDocument; reg: PDFFont; bold: PDFFont; mono: PDFFont; acento: RGB; p: Plantilla; d: DatosPdf; }
+interface Ctx { doc: PDFDocument; reg: PDFFont; bold: PDFFont; mono: PDFFont; acento: RGB; p: Plantilla; d: DatosPdf; tema: Tema; }
+
+const OSCURO = rgb(0.13, 0.14, 0.17);
 
 function texto(page: PDFPage, c: Ctx, s: string, x: number, y: number, o: { size?: number; font?: PDFFont; color?: RGB; align?: "left" | "right" | "center"; width?: number } = {}) {
   const font = o.font ?? c.reg, size = o.size ?? CUERPO, t = seguro(font, s);
@@ -69,6 +71,7 @@ function marcaAgua(page: PDFPage, c: Ctx) {
 
 /** Dibuja el bloque del QR tributario y devuelve la coordenada y bajo él. */
 export function bloqueQr(page: PDFPage, c: Ctx, yTop: number) {
+  if (!c.d.qrUrl || c.d.modo === "sin_registros") return { y: yTop, qr: undefined };
   const lado = QR_LAYOUT.tamanoDefectoMm * MM, zona = QR_LAYOUT.margenRecomendadoMm * MM;
   let y = yTop - ETIQUETA_QR;
   texto(page, c, QR_LAYOUT.textoSuperior, A4.w / 2, y, { size: ETIQUETA_QR, font: c.bold, align: "center" });
@@ -112,17 +115,26 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
   doc.setTitle(`Factura ${d.numSerie}`); doc.setAuthor(d.emisor.nombre); doc.setSubject(d.datos.descripcionOperacion);
   doc.setCreator("AstroFact"); doc.setProducer("AstroFact (pdf-lib)"); doc.setLanguage("es-ES");
   doc.setCreationDate(new Date(`${d.fechaExpedicion}T12:00:00Z`)); doc.setModificationDate(new Date(`${d.fechaExpedicion}T12:00:00Z`));
-  const c: Ctx = { doc, reg: await doc.embedFont(StandardFonts.Helvetica), bold: await doc.embedFont(StandardFonts.HelveticaBold), mono: await doc.embedFont(StandardFonts.Courier), acento: hex(p.colorAcento), p, d };
+  const tema = TEMAS[p.estilo] ?? TEMAS.moderna;
+  const F = tema.fuente === "serif" ? [StandardFonts.TimesRoman, StandardFonts.TimesRomanBold] : tema.fuente === "mono" ? [StandardFonts.Courier, StandardFonts.CourierBold] : [StandardFonts.Helvetica, StandardFonts.HelveticaBold];
+  const c: Ctx = { doc, reg: await doc.embedFont(F[0]!), bold: await doc.embedFont(F[1]!), mono: await doc.embedFont(StandardFonts.Courier), acento: hex(p.colorAcento), p, d, tema };
   const anchoUtil = A4.w - 2 * M.x;
   const paginas: PDFPage[] = [];
-  const nueva = () => { const pg = doc.addPage([A4.w, A4.h]); paginas.push(pg); marcaAgua(pg, c); return pg; };
+  const nueva = () => {
+    const pg = doc.addPage([A4.w, A4.h]); paginas.push(pg);
+    if (tema.banda) pg.drawRectangle({ x: 0, y: 0, width: 5 * MM, height: A4.h, color: c.acento });
+    marcaAgua(pg, c); return pg;
+  };
 
   // ---------- Página 1: QR tributario primero ----------
   let page = nueva();
   let { y } = bloqueQr(page, c, A4.h - M.top);
-  const sep = p.estilo === "moderna" ? c.acento : LINEA;
-  page.drawLine({ start: { x: M.x, y }, end: { x: A4.w - M.x, y }, thickness: p.estilo === "moderna" ? 1.4 : 0.7, color: sep });
-  y -= 6 * MM;
+  if (y < A4.h - M.top) {   // separador bajo el QR
+    if (tema.separador === "acento") page.drawLine({ start: { x: M.x, y }, end: { x: A4.w - M.x, y }, thickness: 1.4, color: c.acento });
+    else if (tema.separador === "fino") page.drawLine({ start: { x: M.x, y }, end: { x: A4.w - M.x, y }, thickness: 0.7, color: LINEA });
+    else if (tema.separador === "doble") for (const dy of [0, 2.5]) page.drawLine({ start: { x: M.x, y: y - dy }, end: { x: A4.w - M.x, y: y - dy }, thickness: dy ? 0.4 : 1, color: tema.tituloAcento ? c.acento : NEGRO });
+    y -= 6 * MM;
+  }
 
   // Emisor (izquierda, con logo) y datos de la factura (derecha)
   let yIzq = y;
@@ -142,7 +154,7 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
   const clase = d.tipoFactura.startsWith("R") ? "FACTURA RECTIFICATIVA" : d.tipoFactura === "F2" ? "FACTURA SIMPLIFICADA" : "FACTURA";
   let yDer = y;
   const xr = A4.w - M.x;
-  texto(page, c, clase, xr, yDer - 8, { size: 8, font: c.bold, color: p.estilo === "moderna" ? c.acento : GRIS, align: "right" }); yDer -= 8 + 6;
+  texto(page, c, clase, xr, yDer - 8, { size: 8, font: c.bold, color: tema.tituloAcento ? c.acento : GRIS, align: "right" }); yDer -= 8 + 6;
   texto(page, c, d.numSerie, xr, yDer - 18, { size: 18, font: c.bold, align: "right" }); yDer -= 18 + 6;
   for (const [k, v] of [["Fecha de expedición", fecha(d.fechaExpedicion)], ["Fecha de operación", d.fechaOperacion ? fecha(d.fechaOperacion) : ""], ["Vencimiento", d.vencimiento ? fecha(d.vencimiento) : ""]] as const) {
     if (!v) continue; yDer -= CUERPO + 3; texto(page, c, `${k}: ${v}`, xr, yDer, { color: GRIS, align: "right" });
@@ -153,8 +165,10 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
   const dest = d.datos.destinatarios?.[0];
   if (dest) {
     const h = 15 * MM;
-    if (p.estilo !== "minimal") page.drawRectangle({ x: M.x, y: y - h, width: anchoUtil, height: h, color: p.estilo === "moderna" ? mezcla(c.acento, 0.07) : rgb(0.965, 0.965, 0.97), borderColor: p.estilo === "clasica" ? LINEA : undefined, borderWidth: p.estilo === "clasica" ? 0.6 : 0 });
-    const xi = M.x + (p.estilo === "minimal" ? 0 : 4 * MM);
+    if (tema.cliente === "tinte") page.drawRectangle({ x: M.x, y: y - h, width: anchoUtil, height: h, color: mezcla(c.acento, 0.07) });
+    else if (tema.cliente === "borde") page.drawRectangle({ x: M.x, y: y - h, width: anchoUtil, height: h, borderColor: tema.fuente === "sans" ? LINEA : mezcla(c.acento, 0.5), borderWidth: 0.6 });
+    else if (tema.cliente === "barra") { page.drawRectangle({ x: M.x, y: y - h, width: anchoUtil, height: h, color: rgb(0.97, 0.97, 0.975) }); page.drawRectangle({ x: M.x, y: y - h, width: 1.2 * MM, height: h, color: c.acento }); }
+    const xi = M.x + (tema.cliente === "nada" ? 0 : 4 * MM);
     texto(page, c, "CLIENTE", xi, y - 4 * MM - 2, { size: 7, font: c.bold, color: GRIS });
     texto(page, c, dest.nombre, xi, y - 4 * MM - 13, { size: 10.5, font: c.bold });
     const id = dest.nif ? `NIF ${dest.nif}` : dest.idOtro ? `${dest.idOtro.codigoPais ?? ""} ${dest.idOtro.id}`.trim() : "";
@@ -175,15 +189,17 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
   const xs = { desc: M.x, cant: M.x + col.desc + col.cant, precio: M.x + col.desc + col.cant + col.precio, dto: M.x + col.desc + col.cant + col.precio + col.dto, imp: M.x + col.desc + col.cant + col.precio + col.dto + col.imp, base: A4.w - M.x };
   const cabTabla = () => {
     const h = 18;
-    if (p.estilo === "moderna") page.drawRectangle({ x: M.x, y: y - h + 5, width: anchoUtil, height: h, color: c.acento });
-    const col2 = p.estilo === "moderna" ? BLANCO : GRIS, pad = p.estilo === "moderna" ? 5 : 0;
+    const relleno = tema.cabTabla === "relleno" || tema.cabTabla === "oscuro";
+    if (relleno) page.drawRectangle({ x: M.x, y: y - h + 5, width: anchoUtil, height: h, color: tema.cabTabla === "oscuro" ? OSCURO : c.acento });
+    const col2 = relleno ? BLANCO : tema.cabTabla === "doble" && tema.tituloAcento ? c.acento : GRIS, pad = relleno ? 5 : 0;
     texto(page, c, "DESCRIPCIÓN", xs.desc + pad, y - 7, { size: 7, font: c.bold, color: col2 });
     texto(page, c, "CANT.", xs.cant, y - 7, { size: 7, font: c.bold, color: col2, align: "right" });
     texto(page, c, "PRECIO", xs.precio, y - 7, { size: 7, font: c.bold, color: col2, align: "right" });
     texto(page, c, "DTO.", xs.dto, y - 7, { size: 7, font: c.bold, color: col2, align: "right" });
     texto(page, c, "IMPUESTO", xs.imp, y - 7, { size: 7, font: c.bold, color: col2, align: "right" });
     texto(page, c, "BASE", xs.base - pad, y - 7, { size: 7, font: c.bold, color: col2, align: "right" });
-    if (p.estilo !== "moderna") page.drawLine({ start: { x: M.x, y: y - 11 }, end: { x: A4.w - M.x, y: y - 11 }, thickness: 0.8, color: p.estilo === "clasica" ? NEGRO : LINEA });
+    if (tema.cabTabla === "linea" || tema.cabTabla === "lineaNegra") page.drawLine({ start: { x: M.x, y: y - 11 }, end: { x: A4.w - M.x, y: y - 11 }, thickness: 0.8, color: tema.cabTabla === "lineaNegra" ? NEGRO : LINEA });
+    if (tema.cabTabla === "doble") for (const yy of [y + 4, y - 11]) page.drawLine({ start: { x: M.x, y: yy }, end: { x: A4.w - M.x, y: yy }, thickness: 0.7, color: NEGRO });
     y -= h + 2;
   };
   cabTabla();
@@ -192,7 +208,8 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
     const lineas = partir(c.reg, CUERPO, l.descripcion, col.desc - 8);
     const h = lineas.length * (CUERPO + 2.5) + 6;
     if (y - h < M.bottom + 12 * MM) { page = nueva(); y = cabeceraContinuacion(page, c); cabTabla(); }
-    const pad = p.estilo === "moderna" ? 5 : 0;
+    const pad = tema.cabTabla === "relleno" || tema.cabTabla === "oscuro" ? 5 : 0;
+    if (tema.zebra && i % 2 === 1) page.drawRectangle({ x: M.x, y: y - h + 1, width: anchoUtil, height: h, color: mezcla(c.acento, 0.05) });
     lineas.forEach((t, k) => texto(page, c, t, xs.desc + pad, y - (CUERPO + 2.5) * (k + 1) + 2));
     const yb = y - CUERPO - 0.5;
     texto(page, c, l.cantidad.replace(".", ","), xs.cant, yb, { align: "right" });
@@ -217,14 +234,17 @@ export async function generarFacturaPdf(d: DatosPdf, plantilla: Partial<Plantill
   y -= 6 * MM;
   const xT = A4.w - M.x - 72 * MM, anchoT = 72 * MM;
   const extra = filas.filter((f) => f[2] === "b").length * 5;
-  if (p.estilo === "moderna") page.drawRectangle({ x: xT - 4 * MM, y: y - filas.length * 15 - extra - 8, width: anchoT + 4 * MM, height: filas.length * 15 + extra + 14, color: mezcla(c.acento, 0.07) });
-  for (const [k, v, e] of filas) {
-    const big = e === "b";
-    if (big) { y -= 5; page.drawLine({ start: { x: xT, y: y + 2 }, end: { x: xT + anchoT - 3 * MM, y: y + 2 }, thickness: 0.6, color: p.estilo === "moderna" ? c.acento : LINEA }); }
-    texto(page, c, k, xT, y - 9, { size: big ? 10.5 : CUERPO, font: big ? c.bold : c.reg, color: big ? NEGRO : GRIS });
-    texto(page, c, v, xT + anchoT - 3 * MM, y - 9, { size: big ? 10.5 : CUERPO, font: big ? c.bold : c.reg, align: "right", color: big && p.estilo === "moderna" && k === "Total a pagar" ? c.acento : NEGRO });
+  if (tema.totales === "tinte") page.drawRectangle({ x: xT - 4 * MM, y: y - filas.length * 15 - extra - 8, width: anchoT + 4 * MM, height: filas.length * 15 + extra + 14, color: mezcla(c.acento, 0.07) });
+  filas.forEach(([k, v, e], idx) => {
+    const big = e === "b", ultima = idx === filas.length - 1;
+    if (big) { y -= 5; if (!(tema.totales === "bloque" && ultima)) page.drawLine({ start: { x: xT, y: y + 2 }, end: { x: xT + anchoT - 3 * MM, y: y + 2 }, thickness: 0.6, color: tema.totales === "tinte" ? c.acento : LINEA }); }
+    const destacada = tema.totales === "bloque" && ultima;
+    if (destacada) page.drawRectangle({ x: xT - 4 * MM, y: y - 15, width: anchoT + 4 * MM, height: 20, color: c.acento });
+    const colorValor = destacada ? BLANCO : big && ultima && tema.totales === "tinte" && k === "Total a pagar" ? c.acento : NEGRO;
+    texto(page, c, k, xT, y - 9, { size: big ? 10.5 : CUERPO, font: big ? c.bold : c.reg, color: destacada ? BLANCO : big ? NEGRO : GRIS });
+    texto(page, c, v, xT + anchoT - 3 * MM, y - 9, { size: big ? 10.5 : CUERPO, font: big ? c.bold : c.reg, align: "right", color: colorValor });
     y -= 15;
-  }
+  });
   y -= 8 * MM;
 
   // Menciones legales obligatorias según el tipo de operación (RD 1619/2012 art. 6.1.m)

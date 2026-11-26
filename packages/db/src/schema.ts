@@ -5,7 +5,7 @@
  */
 import { tx, type SqlDriver } from "./driver";
 
-export const MIGRACIONES: { version: number; nombre: string; sql: string }[] = [
+export const MIGRACIONES: { version: number; nombre: string; sql: string; reconstruye?: (db: SqlDriver) => void }[] = [
   { version: 1, nombre: "esquema inicial", sql: `
 CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, nombre TEXT, aplicada_en TEXT NOT NULL);
 CREATE TABLE meta (clave TEXT PRIMARY KEY, valor TEXT);
@@ -145,6 +145,15 @@ CREATE TABLE movimiento (
   huella TEXT NOT NULL, cobro_id INTEGER, gasto_id INTEGER, creado_en TEXT NOT NULL, UNIQUE (obligado_id, huella)
 );
 `},
+  // Modalidad «sin_registros» (solo facturas, sin sistema de registros: quien no está obligado por el
+  // RD 1007/2023). SQLite no permite cambiar un CHECK: se reconstruye la tabla (procedimiento oficial).
+  { version: 4, nombre: "modalidad sin registros", sql: "", reconstruye: (db) => {
+    const sql = db.get<{ sql: string }>("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'obligado'")!.sql;
+    const nuevo = sql.replace(/CHECK \(modo IN \('verifactu','no_verifactu'\)\)/, "CHECK (modo IN ('verifactu','no_verifactu','sin_registros'))").replace(/^CREATE TABLE "?obligado"?/, "CREATE TABLE obligado_v4");
+    if (nuevo === sql) throw new Error("Migración 4: no se reconoce la definición de la tabla obligado");
+    db.exec(nuevo);
+    db.exec("INSERT INTO obligado_v4 SELECT * FROM obligado; DROP TABLE obligado; ALTER TABLE obligado_v4 RENAME TO obligado;");
+  } },
 ];
 
 export function migrar(db: SqlDriver, ahora = () => new Date()): number[] {
@@ -153,10 +162,15 @@ export function migrar(db: SqlDriver, ahora = () => new Date()): number[] {
   const aplicadas: number[] = [];
   for (const m of MIGRACIONES) {
     if (hechas.has(m.version)) continue;
-    tx(db, () => {
-      db.exec(m.sql);
-      db.run("INSERT INTO schema_migrations (version, nombre, aplicada_en) VALUES (?, ?, ?)", [m.version, m.nombre, ahora().toISOString()]);
-    });
+    if (m.reconstruye) db.exec("PRAGMA foreign_keys = OFF");   // fuera de la transacción (https://sqlite.org/lang_altertable.html §7)
+    try {
+      tx(db, () => {
+        if (m.sql) db.exec(m.sql);
+        m.reconstruye?.(db);
+        if (m.reconstruye && db.all("PRAGMA foreign_key_check").length) throw new Error(`Migración ${m.version}: claves ajenas inconsistentes`);
+        db.run("INSERT INTO schema_migrations (version, nombre, aplicada_en) VALUES (?, ?, ?)", [m.version, m.nombre, ahora().toISOString()]);
+      });
+    } finally { if (m.reconstruye) db.exec("PRAGMA foreign_keys = ON"); }
     aplicadas.push(m.version);
   }
   return aplicadas;

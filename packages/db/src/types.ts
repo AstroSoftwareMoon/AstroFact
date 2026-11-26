@@ -1,7 +1,8 @@
 import type { FacturaBorrador, Territorio, TipoEvento, Totales } from "@astrofact/fiscal-core";
 
 export interface Direccion { linea1?: string; cp?: string; municipio?: string; provincia?: string; pais?: string; }
-export type Modo = "verifactu" | "no_verifactu";
+/** «sin_registros»: solo facturas, sin sistema de registros (para quien no está obligado, ver docs/cumplimiento). */
+export type Modo = "verifactu" | "no_verifactu" | "sin_registros";
 export type Entorno = "pruebas" | "produccion";
 
 export interface Obligado {
@@ -61,7 +62,7 @@ export function totalesAJson(t: Totales): TotalesJson {
 
 /** Plantilla de factura guardada (el logo va en base64 dentro de la propia base de datos). */
 export interface PlantillaGuardada {
-  estilo: "moderna" | "clasica" | "minimal"; colorAcento: string; logoB64?: string; logoTipo?: "png" | "jpg";
+  estilo: "moderna" | "clasica" | "minimal" | "elegante" | "creativa" | "corporativa" | "nordica" | "tecnica"; colorAcento: string; logoB64?: string; logoTipo?: "png" | "jpg";
   pieLegal?: string; notas?: string; mostrarIban: boolean;
 }
 export const PLANTILLA_GUARDADA_DEFECTO: PlantillaGuardada = { estilo: "moderna", colorAcento: "#6C63FF", mostrarIban: true };

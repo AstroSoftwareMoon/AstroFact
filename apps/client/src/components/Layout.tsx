@@ -35,7 +35,7 @@ export default function Layout() {
     { titulo: "Fiscal", items: [
       { to: "/informes", icon: BarChart3, label: "Informes" },
       ...(o.modo === "verifactu" ? [{ to: "/envios", icon: Send, label: "Envíos AEAT" }] : []),
-      { to: "/registro", icon: Link2, label: t("nav.registro") },
+      ...(o.modo !== "sin_registros" || store.registros(o.id).length ? [{ to: "/registro", icon: Link2, label: t("nav.registro") }] : []),
       { to: "/cumplimiento", icon: ShieldCheck, label: "Cumplimiento" },
     ] },
     { items: [{ to: "/ajustes", icon: Settings, label: t("nav.ajustes") }] },
@@ -55,7 +55,7 @@ export default function Layout() {
         <div className="mt-auto glass !rounded-2xl p-3 text-xs">
           <div className="font-medium truncate">{o.nombre}</div><div className="text-muted font-mono">{o.nif}</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            <span className="chip border-accent/40 text-accent">{o.modo === "verifactu" ? "VERI*FACTU" : "No VERI*FACTU"}</span>
+            <span className="chip border-accent/40 text-accent">{o.modo === "verifactu" ? "VERI*FACTU" : o.modo === "no_verifactu" ? "No VERI*FACTU" : "Solo facturas"}</span>
             {o.entorno === "pruebas" && <span className="chip border-warn/40 text-warn">PRUEBAS</span>}
           </div>
           {app.modo === "servidor" && app.usuario && (
@@ -74,12 +74,12 @@ export default function Layout() {
               : <span className="flex-1"><b>Alarma de integridad:</b> {alarmas[0]!.mensaje}. No se desactivará hasta que la cadena vuelva a ser íntegra (art. 6.f Orden HAC/1177/2024).</span>}
             <button className="btn-ghost h-8" onClick={() => nav(alarmas[0]!.tipo.startsWith("aeat") ? "/envios" : "/registro")}>Revisar</button>
           </div>)}
-        {cert && !certOk && (
+        {o.modo !== "sin_registros" && cert && !certOk && (
           <div className="mx-3 md:mx-4 mt-3 rounded-2xl border border-warn/50 bg-warn/10 backdrop-blur-xl px-4 py-2.5 flex items-center gap-3 text-sm">
             <KeyRound className="text-warn shrink-0" size={16} /><span className="flex-1">{o.modo === "verifactu" ? "Certificado bloqueado: desbloquéalo para enviar los registros a la AEAT." : "Certificado bloqueado: desbloquéalo para emitir y firmar registros."}</span>
             <button className="btn-ghost h-8" onClick={() => setDesb(true)}>Desbloquear</button>
           </div>)}
-        {!cert && (
+        {o.modo !== "sin_registros" && !cert && (
           <div className="mx-3 md:mx-4 mt-3 rounded-2xl border border-warn/50 bg-warn/10 px-4 py-2.5 flex items-center gap-3 text-sm">
             <KeyRound className="text-warn shrink-0" size={16} /><span className="flex-1">Falta el certificado electrónico para firmar los registros.</span>
             <button className="btn-ghost h-8" onClick={() => nav("/ajustes#certificado")}>Configurar</button>

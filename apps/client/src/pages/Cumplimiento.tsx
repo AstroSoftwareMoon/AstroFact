@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { BadgeCheck, CalendarClock, Download, ExternalLink, FileText, Scale, ShieldAlert, ShieldCheck } from "lucide-react";
-import { FECHAS_OBLIGATORIEDAD_DEFECTO, TIPO_EVENTO } from "@astrofact/fiscal-core";
+import { OBLIGATORIEDAD, TIPO_EVENTO } from "@astrofact/fiscal-core";
 import avisoLegal from "../../../../docs/aviso-legal.md?raw";
 import { useApp } from "../state/app";
 import { Campo, Chip, Panel, Titulo } from "../ui/kit";
@@ -17,22 +17,22 @@ const NORMATIVA: [string, string, string][] = [
   ["Real Decreto 1619/2012 (Reglamento de facturación)", "https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696", "BOE consolidado"],
   ["Sede AEAT · Sistemas Informáticos de Facturación y VERI*FACTU", "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu.html", "Documentación técnica"],
 ];
-type Fechas = { tipo: "IS" | "resto"; is: string; resto: string };
-const FECHAS_DEF: Fechas = { tipo: "resto", is: FECHAS_OBLIGATORIEDAD_DEFECTO.contribuyentesIS, resto: FECHAS_OBLIGATORIEDAD_DEFECTO.restoObligados };
+type Fechas = { fecha: string; sii: boolean };
+const FECHAS_DEF: Fechas = { fecha: OBLIGATORIEDAD.fecha ?? "", sii: false };
 
 export default function Cumplimiento() {
   const { store, obligado: o, modo } = useApp();
   const [doc, setDoc] = useState<"declaracion" | "aviso">("declaracion");
-  const [fechas, setFechasS] = useState<Fechas>(() => { try { return { ...FECHAS_DEF, ...JSON.parse(pref.get("fechasObligatoriedad") ?? "{}") }; } catch { return FECHAS_DEF; } });
-  const setFechas = (f: Fechas) => { setFechasS(f); pref.set("fechasObligatoriedad", JSON.stringify(f)); };
+  const [fechas, setFechasS] = useState<Fechas>(() => { try { const g = JSON.parse(pref.get("obligatoriedad") ?? "{}"); return { ...FECHAS_DEF, ...g }; } catch { return FECHAS_DEF; } });
+  const setFechas = (f: Fechas) => { setFechasS(f); pref.set("obligatoriedad", JSON.stringify(f)); };
   const si = store.sistemaInformatico();
   const regs = store.registros(o.id);
   const evs = store.eventos(o.id, 500);
   const ultimo = (t: string) => evs.find((e) => e.tipo === t);
   const alarmas = store.alarmasAbiertas(o.id);
   const verif = ultimo("03"), resumen = ultimo("09"), sinFirmar = evs.filter((e) => !e.firmado).length;
-  const fecha = fechas.tipo === "IS" ? fechas.is : fechas.resto;
-  const dias = Math.ceil((new Date(fecha + "T00:00:00").getTime() - new Date(store.hoy(o.id) + "T00:00:00").getTime()) / 86_400_000);
+  const fecha = fechas.fecha;
+  const dias = fecha ? Math.ceil((new Date(fecha + "T00:00:00").getTime() - new Date(store.hoy(o.id) + "T00:00:00").getTime()) / 86_400_000) : NaN;
   const copia = diasDesdeCopia();
   const texto = doc === "declaracion" ? declaracionResponsable() : avisoLegal;
   const filas: [string, React.ReactNode][] = [
@@ -73,15 +73,11 @@ export default function Cumplimiento() {
         </div>
         <div className="space-y-5 lg:sticky lg:top-6">
           <Panel>
-            <h2 className="font-semibold flex items-center gap-2 mb-1"><CalendarClock size={18} className="text-accent" />Fechas de obligatoriedad</h2>
-            <p className="text-xs text-muted mb-3">Disposición final cuarta del RD 1007/2023 (texto consolidado). Son <b>configurables</b>: revísalas en el BOE si cambian.</p>
-            <Campo label="Tu caso"><select className="input" value={fechas.tipo} onChange={(e) => setFechas({ ...fechas, tipo: e.target.value as Fechas["tipo"] })}><option value="IS">Contribuyente del Impuesto sobre Sociedades</option><option value="resto">Resto de obligados (autónomos…)</option></select></Campo>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <Campo label="Sociedades (IS)"><input className="input" type="date" value={fechas.is} onChange={(e) => setFechas({ ...fechas, is: e.target.value })} /></Campo>
-              <Campo label="Resto"><input className="input" type="date" value={fechas.resto} onChange={(e) => setFechas({ ...fechas, resto: e.target.value })} /></Campo>
-            </div>
-            <p className="text-sm mt-3">{dias > 0 ? <>Faltan <b className="text-accent tabular-nums">{dias}</b> días para el {fecha.split("-").reverse().join("/")}.</> : <>Obligatorio desde el {fecha.split("-").reverse().join("/")}.</>}</p>
-            {(fechas.is !== FECHAS_DEF.is || fechas.resto !== FECHAS_DEF.resto) && <button className="text-xs text-accent mt-2" onClick={() => setFechas({ ...FECHAS_DEF, tipo: fechas.tipo })}>Restablecer las fechas oficiales conocidas</button>}
+            <h2 className="font-semibold flex items-center gap-2 mb-1"><CalendarClock size={18} className="text-accent" />¿Cuándo es obligatorio?</h2>
+            <p className="text-xs text-muted mb-3">Desde el Real Decreto-ley 43/2026 (BOE 25/11/2026), un sistema de registros (VERI*FACTU o No VERI*FACTU) será obligatorio <b>{OBLIGATORIEDAD.mesesTrasOrden} meses después</b> de que entre en vigor la orden ministerial de la factura electrónica (RD 238/2026). <b>Todavía no hay fecha fija</b>; las de 2027 ya no están vigentes.</p>
+            <label className="flex items-center gap-2 text-sm mb-3"><input type="checkbox" className="h-4 w-4" checked={fechas.sii} onChange={(e) => setFechas({ ...fechas, sii: e.target.checked })} />Llevo los libros en el SII (art. 3.3 RD 1007/2023: no me aplica)</label>
+            {!fechas.sii && <Campo label="Fecha de obligatoriedad (cuando se publique)" ayuda="Revísala en el BOE: AstroFact no la inventa."><input className="input" type="date" value={fechas.fecha} onChange={(e) => setFechas({ ...fechas, fecha: e.target.value })} /></Campo>}
+            <p className="text-sm mt-3">{fechas.sii ? "Con el SII no estás obligado a usar un sistema de registros: puedes seguir en «Solo facturas»." : !fecha ? <>Sin fecha fijada: hoy puedes usar <b>«Solo facturas»</b>.</> : dias > 0 ? <>Faltan <b className="text-accent tabular-nums">{dias}</b> días para el {fecha.split("-").reverse().join("/")}.</> : <span className="text-warn">Obligatorio desde el {fecha.split("-").reverse().join("/")}{o.modo === "sin_registros" ? ": activa un sistema de registros en Ajustes." : "."}</span>}</p>
           </Panel>
           <Panel>
             <h2 className="font-semibold mb-2">Normativa aplicada</h2>

@@ -103,7 +103,14 @@ export default function Ajustes() {
 
         <Panel>
           <h2 className="font-semibold mb-1">Modalidad del sistema de facturación</h2>
-          {o.modo === "verifactu" ? (
+          {o.modo === "sin_registros" ? (<>
+            <p className="text-sm text-muted">Funcionando como <b className="text-fg">Solo facturas</b>: tus facturas no generan registros de facturación, QR tributario ni firma. Es válido mientras no estés obligado por el RD 1007/2023 (la fecha está en <a className="text-accent" href="#/cumplimiento">Cumplimiento</a>) o si llevas tus libros en el SII.</p>
+            <p className="text-xs text-muted mt-2">Cuando te toque, activa un sistema de registros. Es un paso <b>sin vuelta atrás</b>: desde ese momento cada factura nueva generará su registro encadenado.</p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button className="btn-ghost" disabled={!app.puede("propietario")} onClick={() => { if (confirm("¿Activar No VERI*FACTU? Necesitas tu certificado electrónico desbloqueado; cada factura nueva generará un registro firmado. No se puede volver a «Solo facturas».")) void accion(() => store.activarRegistros(o.id), "Ahora funcionas como No VERI*FACTU"); }}>Activar No VERI*FACTU</button>
+              {(app.modo === "servidor" || verifactuLocalDisponible()) && <button className="btn-ghost" disabled={!app.puede("propietario")} onClick={() => { if (confirm("¿Activar VERI*FACTU? Desde ahora cada factura nueva se enviará a la AEAT con tu certificado. No se puede volver a «Solo facturas».")) void accion(() => store.activarVerifactu(o.id), "Ahora funcionas como VERI*FACTU"); }}>Activar VERI*FACTU</button>}
+            </div>
+          </>) : o.modo === "verifactu" ? (
             <p className="text-sm text-muted">Funcionando como <b className="text-fg">VERI*FACTU</b>: cada registro se envía a la AEAT ({o.entorno === "pruebas" ? "entorno de PRUEBAS" : "producción"}). La renuncia solo puede hacerse con efectos al final del año natural (art. 17 Orden); se añadirá en una próxima versión.</p>
           ) : (<>
             <p className="text-sm text-muted">Funcionando como <b className="text-fg">No VERI*FACTU</b>: registros firmados y conservados {app.modo === "servidor" ? "en tu servidor" : "en este dispositivo"}, con registro de eventos.</p>

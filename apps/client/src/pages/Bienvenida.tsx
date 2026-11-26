@@ -22,7 +22,7 @@ export default function Bienvenida() {
   const [restaurar, setRestaurar] = useState(false);
   const vfPosible = remoto || verifactuLocalDisponible();
   useEffect(() => { if (remoto && app.usuario) setPaso((p) => Math.max(p, 2)); }, [remoto, app.usuario]);
-  const [modalidad, setModalidad] = useState<"no_verifactu" | "verifactu">("no_verifactu");
+  const [modalidad, setModalidad] = useState<"sin_registros" | "no_verifactu" | "verifactu">("sin_registros");
   const [neg, setNeg] = useState({ nif: "", nombre: "", linea1: "", cp: "", municipio: "", provincia: "", email: "", territorio: "peninsula" as "peninsula" | "canarias", entorno: "pruebas" as "pruebas" | "produccion" });
   const [serie, setSerie] = useState({ codigo: "A", plantilla: "{serie}-{año}-{num:4}", rect: true, simpl: false });
   const [cert, setCert] = useState<{ modo: "p12" | "pruebas" | "luego"; fichero?: File; pass: string }>({ modo: "pruebas", pass: "" });
@@ -30,8 +30,9 @@ export default function Bienvenida() {
   const [trabajando, setTrabajando] = useState(false);
   const [err, setErr] = useState<string>();
   const nifR = neg.nif ? validateNif(neg.nif) : undefined;
-  const sig = () => { setErr(undefined); setPaso((p) => { let n = Math.min(p + 1, PASOS.length - 1); if (remoto && PASOS[n] === "seguridad") n++; return n; }); };
-  const atras = () => { setErr(undefined); setPaso((p) => Math.max(p - 1, 0)); };
+  const saltar = (n: number) => (remoto && PASOS[n] === "seguridad") || (modalidad === "sin_registros" && PASOS[n] === "cert");
+  const sig = () => { setErr(undefined); setPaso((p) => { let n = Math.min(p + 1, PASOS.length - 1); while (saltar(n) && n < PASOS.length - 1) n++; return n; }); };
+  const atras = () => { setErr(undefined); setPaso((p) => { let n = Math.max(p - 1, 0); while (saltar(n) && n > 0) n--; return n; }); };
   const id = PASOS[paso];
 
   async function finalizar() {
@@ -39,14 +40,15 @@ export default function Bienvenida() {
     try {
       if (!remoto && cifrar.activo) { if (cifrar.pass !== cifrar.pass2) throw new Error("Las contraseñas no coinciden"); await app.activarCifrado(cifrar.pass); }
       const s = app.crearStoreNuevo();
-      const o = s.obligado() ?? await s.crearObligado({ nif: neg.nif, nombre: neg.nombre, territorio: neg.territorio, modo: modalidad, entorno: neg.entorno, email: neg.email || undefined,
+      const o = s.obligado() ?? await s.crearObligado({ nif: neg.nif, nombre: neg.nombre, territorio: neg.territorio, modo: modalidad, entorno: modalidad === "sin_registros" ? "produccion" : neg.entorno, email: neg.email || undefined,
         direccion: { linea1: neg.linea1 || undefined, cp: neg.cp || undefined, municipio: neg.municipio || undefined, provincia: neg.provincia || undefined, pais: "España" } });
       if (!s.series(o.id).length) {
         await s.crearSerie(o.id, { codigo: serie.codigo, plantilla: serie.plantilla, clase: "ordinaria", reinicioAnual: true });
         if (serie.rect) await s.crearSerie(o.id, { codigo: "R", plantilla: "R-{año}-{num:4}", clase: "rectificativa", reinicioAnual: true });
         if (serie.simpl) await s.crearSerie(o.id, { codigo: "T", plantilla: "T-{año}-{num:5}", clase: "simplificada", reinicioAnual: true });
       }
-      if (cert.modo === "pruebas") await s.generarCertificadoPruebas(o.id, cert.pass);
+      if (modalidad === "sin_registros") { /* sin certificado */ }
+      else if (cert.modo === "pruebas") await s.generarCertificadoPruebas(o.id, cert.pass);
       else if (cert.modo === "p12" && cert.fichero) await s.guardarCertificado(o.id, new Uint8Array(await cert.fichero.arrayBuffer()), cert.pass);
       sig();
     } catch (e) { setErr((e as Error).message); } finally { setTrabajando(false); }
@@ -105,14 +107,18 @@ export default function Bienvenida() {
               </Campo>
             </div>
             <div className="mt-6"><span className="label">{t("w.modalidad")}</span>
+              <button onClick={() => setModalidad("sin_registros")} data-testid="modalidad-sin-registros" className={`glass !rounded-2xl p-4 text-left w-full mb-3 ${modalidad === "sin_registros" ? "ring-2 ring-accent" : "opacity-80"}`}>
+                <div className="font-medium flex items-center gap-2"><Sparkles size={16} className="text-accent" />Solo facturas <Chip tono="acc">Recomendado hoy</Chip></div>
+                <p className="text-xs text-muted mt-1">Haz facturas bonitas sin certificado ni registros. Hoy no es obligatorio usar un sistema VERI*FACTU (la obligación empezará cuando lo fije la normativa) y si estás en el SII nunca lo será. Cuando te toque, lo activas en Ajustes.</p>
+              </button>
               <div className="grid sm:grid-cols-2 gap-3">
-                <button onClick={() => setModalidad("no_verifactu")} className={`glass !rounded-2xl p-4 text-left ${modalidad === "no_verifactu" ? "ring-2 ring-accent" : "opacity-80"}`}><div className="font-medium flex items-center gap-2"><ShieldCheck size={16} className="text-accent" />No VERI*FACTU</div><p className="text-xs text-muted mt-1">Registros firmados con tu certificado y guardados {remoto ? "en tu servidor" : "en tu equipo"}, con registro de eventos.</p></button>
+                <button onClick={() => setModalidad("no_verifactu")} data-testid="modalidad-no-verifactu" className={`glass !rounded-2xl p-4 text-left ${modalidad === "no_verifactu" ? "ring-2 ring-accent" : "opacity-80"}`}><div className="font-medium flex items-center gap-2"><ShieldCheck size={16} className="text-accent" />No VERI*FACTU</div><p className="text-xs text-muted mt-1">Registros firmados con tu certificado y guardados {remoto ? "en tu servidor" : "en tu equipo"}, con registro de eventos.</p></button>
                 <button disabled={!vfPosible} onClick={() => setModalidad("verifactu")} className={`glass !rounded-2xl p-4 text-left disabled:opacity-40 ${modalidad === "verifactu" ? "ring-2 ring-accent" : "opacity-80"}`} data-testid="modalidad-verifactu"><div className="font-medium flex items-center gap-2">VERI*FACTU</div><p className="text-xs text-muted mt-1">{vfPosible ? "Cada registro se envía automáticamente a la AEAT con tu certificado. La factura lleva la leyenda «Factura verificable en la sede electrónica de la AEAT»." : "Requiere la app de escritorio o un servidor: el navegador no puede usar tu certificado para conectar con la AEAT."}</p></button>
               </div>
             </div>
-            <div className="mt-5"><Campo label="Entorno" ayuda={neg.entorno === "pruebas" ? "Recomendado mientras pruebas: el QR apunta al portal de pruebas de la AEAT y las facturas se marcan «PRUEBAS»." : "Solo para facturas reales, con tu certificado cualificado."}>
+            {modalidad !== "sin_registros" && <div className="mt-5"><Campo label="Entorno" ayuda={neg.entorno === "pruebas" ? "Recomendado mientras pruebas: el QR apunta al portal de pruebas de la AEAT y las facturas se marcan «PRUEBAS»." : "Solo para facturas reales, con tu certificado cualificado."}>
               <select className="input" value={neg.entorno} onChange={(e) => setNeg({ ...neg, entorno: e.target.value as "pruebas" })}><option value="pruebas">Pruebas (sin validez fiscal)</option><option value="produccion">Producción</option></select>
-            </Campo></div>
+            </Campo></div>}
           </>)}
 
           {id === "serie" && (<>
@@ -168,7 +174,7 @@ export default function Bienvenida() {
           {id !== "listo" && (
             <div className="flex justify-between mt-8">
               <button className="btn-ghost" onClick={atras} disabled={paso === 0 || (remoto && paso <= 2)}>{t("comun.atras")}</button>
-              {id === "seguridad" || (remoto && id === "cert")
+              {id === "seguridad" || (remoto && (id === "cert" || (id === "serie" && modalidad === "sin_registros")))
                 ? <button className="btn-primary" onClick={finalizar} disabled={trabajando || (!remoto && cifrar.activo && cifrar.pass.length < 8) || (id === "cert" && !certOk)}>{trabajando ? "Configurando…" : t("comun.empezar")}</button>
                 : <button className="btn-primary" onClick={sig} disabled={(id === "uso" && usoServidor) || (id === "negocio" && !negocioOk) || (id === "cert" && !certOk) || (id === "serie" && !serie.codigo)}>{t("comun.siguiente")}</button>}
             </div>)}

@@ -1,6 +1,6 @@
 {
   "name": "@astrofact/pdf",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Generación de facturas PDF vectoriales de AstroFact con QR tributario según la especificación de la AEAT.",
   "license": "AGPL-3.0-or-later",
   "type": "module",
