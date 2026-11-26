@@ -212,7 +212,7 @@ jobs:
           context: .
           file: apps/server/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ vars.PRODUCTOR_NOMBRE != '' && vars.PRODUCTOR_NIF != '' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
@@ -280,6 +280,12 @@ jobs:
           sha256sum -- * | grep -v "latest.json" > SHA256SUMS.txt
           cat SHA256SUMS.txt
           gh release upload "$TAG" $ESTABLES SHA256SUMS.txt --clobber
+      # Sin los datos del productor (declaración responsable, art. 15 Orden HAC/1177/2024) la versión se
+      # compila entera pero queda como BORRADOR privado: no se distribuye a usuarios.
       - name: Publicar
+        if: vars.PRODUCTOR_NOMBRE != '' && vars.PRODUCTOR_NIF != ''
         env: { GH_TOKEN: "${{ github.token }}" }
         run: gh release edit "$TAG" --draft=false
+      - name: Dejar en borrador (falta la declaración responsable)
+        if: vars.PRODUCTOR_NOMBRE == '' || vars.PRODUCTOR_NIF == ''
+        run: echo "::warning::Versión compilada y guardada como BORRADOR. Define las variables PRODUCTOR_* (docs/cumplimiento/README.md) y vuelve a lanzar el workflow para publicarla."
