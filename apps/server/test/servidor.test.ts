@@ -28,7 +28,7 @@ describe("Servidor: seguridad", () => {
     const web = mkdtempSync(join(tmpdir(), "afweb-")); writeFileSync(join(web, "index.html"), "<title>AstroFact</title>"); writeFileSync(join(web, "sw.js"), "//");
     const app = await nuevo(dirDatos(), { webDir: web });
     const s = await app.inject("/api/salud");
-    expect(s.json()).toEqual({ estado: "ok", version: "9.9.9", fase: 5 });
+    expect(s.json()).toEqual({ estado: "ok", version: "9.9.9", fase: 6 });
     expect(s.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
     expect((await app.inject("/facturas/1")).body).toContain("AstroFact");
     expect((await app.inject("/sw.js")).headers["cache-control"]).toBe("no-cache");
@@ -118,6 +118,33 @@ describe("Servidor: VERI*FACTU y réplica", () => {
     const t2 = (await app.inject({ method: "POST", url: "/api/sesion", payload: { email: "duena@example.com", password: "una-clave-larga-1" } })).json().token;
     expect((await app.inject({ url: "/api/sincronizar", headers: auth(t2) })).headers["x-desbloqueado"]).toBe('{"1":true}');
     await app.close();
+  });
+
+  it("gestión comercial por RPC: gastos con adjunto (fuera de la réplica), roles y lista blanca del cliente", async () => {
+    const app = await nuevo(); const t = await instalar(app);
+    await app.inject({ method: "POST", url: "/api/usuarios", headers: auth(t), payload: { email: "ver@example.com", password: "clave-segura-123", rol: "lectura" } });
+    const tl = (await app.inject({ method: "POST", url: "/api/sesion", payload: { email: "ver@example.com", password: "clave-segura-123" } })).json().token as string;
+    await rpc(app, t, "crearObligado", [{ nif: NIF, nombre: "Estudio Lunar SL", territorio: "peninsula", modo: "no_verifactu", entorno: "pruebas" }]);
+    const g = await rpc(app, t, "guardarGasto", [1, { proveedorNombre: "Fibra SA", fecha: "2026-01-10", concepto: "Fibra", desglose: [{ base: "100", tipo: "21" }] }]);
+    expect(g.statusCode).toBe(200); expect(g.json().resultado.total).toBe("121.00");
+    expect((await rpc(app, tl, "guardarGasto", [1, { proveedorNombre: "X", fecha: "2026-01-10", concepto: "X", desglose: [] }])).statusCode).toBe(403);
+    const pdf = Buffer.from("%PDF-1.4 " + "x".repeat(2_000_000));
+    const a = await rpc(app, t, "anadirAdjunto", [1, "gasto", g.json().resultado.id, { nombre: "f.pdf", mime: "application/pdf", datos: { $b64: pdf.toString("base64") } }]);
+    expect(a.statusCode).toBe(200);
+    // La réplica no lleva los bytes de los adjuntos; se piden bajo demanda (también con rol lectura)
+    const s1 = await app.inject({ url: "/api/sincronizar", headers: auth(tl) });
+    expect(s1.rawPayload.length).toBeLessThan(1_000_000);
+    const d = await rpc(app, tl, "adjuntoDatos", [a.json().resultado.id]);
+    expect(Buffer.from(d.json().resultado.datos.$b64, "base64").equals(pdf)).toBe(true);
+    await app.close();
+  });
+
+  it("los métodos de escritura del cliente remoto coinciden con la lista blanca del servidor", async () => {
+    const { readFileSync } = await import("node:fs");
+    const src = readFileSync(resolve(__dirname, "../../client/src/platform/remoto.ts"), "utf8");
+    const lista = [...src.match(/const ESCRITURAS = new Set\(\[([\s\S]*?)\]\)/)![1]!.matchAll(/"(\w+)"/g)].map((m) => m[1]!).sort();
+    const { METODOS } = await import("../src/rpc");
+    expect(lista).toEqual(Object.keys(METODOS).sort());
   });
 
   it("producción bloqueada salvo autorización explícita", async () => {

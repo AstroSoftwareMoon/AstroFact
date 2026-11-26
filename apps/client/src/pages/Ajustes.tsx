@@ -10,6 +10,7 @@ import { GestionUsuarios, MiCuenta } from "../components/CuentaServidor";
 import { verifactuLocalDisponible } from "../platform/transporte";
 import { Campo, Chip, Modal, Panel, Titulo } from "../ui/kit";
 import { fecha } from "../format";
+import { pref } from "../platform/storage";
 
 export default function Ajustes() {
   const app = useApp();
@@ -18,6 +19,7 @@ export default function Ajustes() {
   const cert = store.certificado(o.id);
   const [neg, setNeg] = useState({ nombre: o.nombre, email: o.email ?? "", telefono: o.telefono ?? "", iban: o.iban ?? "", pieLegal: o.pieLegal ?? "", ...o.direccion });
   const [p12, setP12] = useState<{ f?: File; pass: string }>({ pass: "" });
+  const [facturae, setFacturae] = useState(pref.get("facturae") === "1");
   const [serie, setSerie] = useState({ codigo: "", plantilla: "{serie}-{año}-{num:4}", clase: "ordinaria" as "ordinaria" });
   const [cif, setCif] = useState({ a: "", b: "" });
   const [doc, setDoc] = useState<"decl" | "aviso" | null>(null);
@@ -92,6 +94,9 @@ export default function Ajustes() {
               <input type="password" className="input" placeholder="Repetir" value={cif.b} onChange={(e) => setCif({ ...cif, b: e.target.value })} />
               <button className="btn-ghost" disabled={cif.a.length < 8 || cif.a !== cif.b} onClick={() => accion(() => app.activarCifrado(cif.a), "Base de datos cifrada")}>Cifrar</button>
             </div>)}
+          <h3 className="font-medium mt-5 mb-1">Módulos opcionales</h3>
+          <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="h-4 w-4 mt-0.5" checked={facturae} onChange={(e) => { setFacturae(e.target.checked); pref.set("facturae", e.target.checked ? "1" : "0"); }} />
+            <span>Exportación <b>Facturae 3.2.2</b> (factura electrónica para Administraciones Públicas/FACe y B2B). <span className="text-muted">El XML se genera sin firmar y validado contra el esquema oficial; fírmalo con AutoFirma u otra herramienta antes de presentarlo.</span></span></label>
           <p className="text-xs text-muted mt-4">Número de instalación: <span className="font-mono">{store.sistemaInformatico().NumeroInstalacion}</span> · Versión {store.productor.Version}</p>
         </Panel>
 

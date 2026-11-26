@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Ban, CheckCircle2, Code2, FileDiff, FileDown, Printer, Share2 } from "lucide-react";
+import { ArrowLeft, Ban, CheckCircle2, Code2, FileCode2, FileDiff, FileDown, Printer, Share2, Trash2 } from "lucide-react";
 import { pdfDeFactura } from "../platform/pdf";
+import { facturaeDe } from "../platform/informes";
+import { pref } from "../platform/storage";
 import { useApp } from "../state/app";
 import { Chip, Modal, Panel } from "../ui/kit";
 import DocumentoFactura from "../components/DocumentoFactura";
@@ -19,6 +21,7 @@ export default function VerFactura() {
   const [rect, setRect] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [err, setErr] = useState<string>();
+  const [nc, setNc] = useState({ fecha: "", importe: "" });
   if (!f || f.obligadoId !== o.id) return <p>Factura no encontrada.</p>;
   const regs = store.registrosFactura(f.id);
   const rectificadora = f.rectificadaPor ? store.factura(f.rectificadaPor) : undefined;
@@ -35,6 +38,7 @@ export default function VerFactura() {
         <div className="ml-auto flex flex-wrap gap-2">
           <button className="btn-primary" data-testid="descargar-pdf" onClick={async () => { try { descargar(`Factura-${f.numSerie}.pdf`, await pdfDeFactura(f, o, store.plantilla(o.id)), "application/pdf"); } catch (e) { toast((e as Error).message, "error"); } }}><FileDown size={16} />PDF</button>
           <button className="btn-ghost" onClick={() => window.print()}><Printer size={16} />Imprimir</button>
+          {pref.get("facturae") === "1" && <button className="btn-ghost" onClick={() => { try { descargar(`Facturae-${f.numSerie}.xml`, facturaeDe(store, o, f)); toast("Facturae generado (sin firmar)"); } catch (e) { toast((e as Error).message, "error"); } }}><FileCode2 size={16} />Facturae</button>}
           <a className="btn-ghost" href={`mailto:${email ?? ""}?subject=${asunto}&body=${cuerpo}`}><Share2 size={16} />Email</a>
           <a className="btn-ghost" href={`https://wa.me/?text=${cuerpo}`} target="_blank" rel="noreferrer">WhatsApp</a>
           {(f.estadoAeat === "rechazado" || f.estadoAeat === "aceptado_con_errores") && !f.anulada && <button className="btn-ghost" onClick={async () => { try { await store.subsanar(f.id); toast("Registro de subsanación generado y en cola de envío"); } catch (e) { toast((e as Error).message, "error"); } }}>Subsanar</button>}
@@ -49,6 +53,12 @@ export default function VerFactura() {
             <h2 className="font-semibold mb-2">Cobro</h2>
             <select className="input" value={f.estadoCobro} onChange={async (e) => { await store.marcarCobro(f.id, e.target.value as typeof f.estadoCobro); toast("Estado de cobro actualizado"); }}>
               <option value="pendiente">Pendiente</option><option value="parcial">Cobro parcial</option><option value="cobrada">Cobrada</option><option value="impagada">Impagada</option></select>
+            {store.cobros(f.id).length > 0 && <ul className="mt-3 text-sm space-y-1">{store.cobros(f.id).map((c) => <li key={c.id} className="flex items-center gap-2 tabular-nums"><span className="text-muted">{c.fecha.split("-").reverse().join("/")}</span><span>{euros(c.importe)}</span><span className="text-xs text-muted truncate">{c.medio}</span>
+              <button className="btn-ghost h-7 w-7 px-0 ml-auto" aria-label="Eliminar cobro" onClick={async () => { await store.eliminarCobro(c.id); toast("Cobro eliminado"); }}><Trash2 size={13} /></button></li>)}</ul>}
+            {!f.anulada && f.estadoCobro !== "cobrada" && <form className="mt-3 grid grid-cols-[1fr_1fr_auto] gap-2" onSubmit={async (e) => { e.preventDefault(); try { await store.registrarCobro(f.id, { fecha: nc.fecha || store.hoy(o.id), importe: (nc.importe || store.pendienteDeCobro(f.id)).replace(",", ".") }); setNc({ fecha: "", importe: "" }); toast("Cobro registrado"); } catch (x) { toast((x as Error).message, "error"); } }}>
+              <input className="input-sm" type="date" aria-label="Fecha del cobro" value={nc.fecha || store.hoy(o.id)} onChange={(e) => setNc({ ...nc, fecha: e.target.value })} />
+              <input className="input-sm text-right" inputMode="decimal" aria-label="Importe cobrado" placeholder={store.pendienteDeCobro(f.id)} value={nc.importe} onChange={(e) => setNc({ ...nc, importe: e.target.value })} />
+              <button className="btn-ghost h-9 text-xs">Cobro</button></form>}
             {rectificadora && <p className="text-sm mt-3">Rectificada por <Link className="text-accent font-mono" to={`/facturas/${rectificadora.id}`}>{rectificadora.numSerie}</Link></p>}
           </Panel>
           <Panel>

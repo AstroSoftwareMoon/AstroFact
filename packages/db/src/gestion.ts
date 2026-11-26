@@ -181,7 +181,7 @@ P.documentos = function (obligadoId, clase) {
 };
 P.documento = function (id) { const r = this.db.get("SELECT * FROM documento WHERE id = ?", [id]); return r ? mapDoc(r) : undefined; };
 P.guardarDocumento = function (obligadoId, d) {
-  const fecha = d.fecha ?? this.hoy(obligadoId);
+  const fecha = d.fecha ?? (d.id ? this.documento(d.id)?.fecha : undefined) ?? this.hoy(obligadoId);
   const t = calcularTotales(d.borrador);
   if (d.id) {
     const prev = this.documento(d.id)!;

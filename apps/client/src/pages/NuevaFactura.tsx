@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { AlertCircle, Info, Plus, Send, Trash2, UserPlus } from "lucide-react";
+import { AlertCircle, Info, Plus, Repeat, Save, Send, Trash2, UserPlus } from "lucide-react";
 import { calcularTotales, RECARGO_POR_TIPO_IVA, D, type LineaFactura, type TipoFactura } from "@astrofact/fiscal-core";
-import { ErrorValidacion, type BorradorUI } from "@astrofact/db";
+import { ErrorValidacion, type BorradorUI, type ClaseDocumento, type Periodicidad } from "@astrofact/db";
 import { useApp } from "../state/app";
 import { Campo, Modal, Panel, Titulo } from "../ui/kit";
 import { euros } from "../format";
@@ -28,11 +28,20 @@ const IMPUESTOS: Record<string, { label: string; l: Partial<LineaFactura> }> = {
 const claveDe = (l: LineaFactura) => Object.entries(IMPUESTOS).find(([, v]) => v.l.impuesto === (l.impuesto ?? "01") && v.l.tipo === l.tipo && v.l.exenta === l.exenta && (v.l.calificacion ?? "S1") === (l.calificacion ?? "S1"))?.[0] ?? "iva21";
 const lineaVacia = (): LineaFactura => ({ descripcion: "", cantidad: "1", precioUnitario: "0", impuesto: "01", tipo: "21" });
 
-export default function NuevaFactura() {
+/** Destino del editor: factura (emitir), documento comercial (presupuesto/albarán/borrador) o plantilla recurrente. */
+export type DestinoEditor = { tipo: "factura" } | { tipo: "documento"; clase: ClaseDocumento; id?: number } | { tipo: "recurrente"; id?: number };
+const TITULOS: Record<ClaseDocumento, string> = { presupuesto: "presupuesto", albaran: "albarán", borrador: "borrador" };
+
+export default function NuevaFactura({ destino: destinoProp }: { destino?: DestinoEditor } = {}) {
   const { store, obligado: o, toast } = useApp();
   const nav = useNavigate();
-  const loc = useLocation() as { state?: { borrador?: BorradorUI } };
-  const inicial = loc.state?.borrador;
+  const loc = useLocation() as { state?: { borrador?: BorradorUI; destino?: DestinoEditor; documentoOrigen?: number } };
+  const destino: DestinoEditor = loc.state?.destino ?? destinoProp ?? { tipo: "factura" };
+  const recInicial = destino.tipo === "recurrente" && destino.id ? store.recurrencias(o.id).find((r) => r.id === destino.id) : undefined;
+  const docInicial = destino.tipo === "documento" && destino.id ? store.documento(destino.id) : undefined;
+  const inicial = loc.state?.borrador ?? recInicial?.borrador ?? docInicial?.borrador;
+  const [rec, setRec] = useState({ nombre: recInicial?.nombre ?? "", periodicidad: (recInicial?.periodicidad ?? "mensual") as Periodicidad, proxima: recInicial?.proxima ?? store.hoy(o.id), hasta: recInicial?.hasta ?? "", autoEmitir: recInicial?.autoEmitir ?? false });
+  const [validez, setValidez] = useState(docInicial?.validez ?? "");
   const esRect = !!inicial?.rectificacion;
   const [b, setB] = useState<BorradorUI>(inicial ?? { tipoFactura: "F1", descripcionOperacion: "", lineas: [lineaVacia()] });
   const series = store.series(o.id).filter((s) => s.activa && (esRect ? s.clase === "rectificativa" : s.clase !== "rectificativa"));
@@ -65,10 +74,31 @@ export default function NuevaFactura() {
   const errores = incidencias.filter((i) => i.nivel === "error");
   const avisos = incidencias.filter((i) => i.nivel === "aviso");
 
+  async function guardarOtro() {
+    setBusy(true); setErrEmit(undefined);
+    try {
+      if (destino.tipo === "documento") {
+        const d = await store.guardarDocumento(o.id, { id: destino.id, clase: destino.clase, borrador: b, validez: validez || undefined });
+        toast(`${TITULOS[destino.clase][0]!.toUpperCase()}${TITULOS[destino.clase].slice(1)} ${d.numero} guardado`);
+        nav(`/documentos/${destino.clase}`, { replace: true });
+      } else if (destino.tipo === "recurrente") {
+        if (!rec.nombre.trim()) throw new Error("Pon un nombre a la factura recurrente");
+        await store.guardarRecurrencia(o.id, { id: destino.id, nombre: rec.nombre, serieId: serieId!, borrador: { ...b, fechaExpedicion: undefined }, periodicidad: rec.periodicidad, proxima: rec.proxima, hasta: rec.hasta || undefined, autoEmitir: rec.autoEmitir });
+        toast("Factura recurrente guardada"); nav("/recurrentes", { replace: true });
+      }
+    } catch (e) { setErrEmit((e as Error).message); } finally { setBusy(false); }
+  }
+
   async function emitir() {
     setBusy(true); setErrEmit(undefined);
     try {
-      const f = await store.emitir(o.id, serieId!, b);
+      let f;
+      const origen = loc.state?.documentoOrigen ? store.documento(loc.state.documentoOrigen) : undefined;
+      if (origen) {
+        // Se guardan primero los cambios del borrador y se factura el documento (queda enlazado a la factura)
+        await store.guardarDocumento(o.id, { id: origen.id, clase: origen.clase, borrador: b, validez: origen.validez, notas: origen.notas });
+        f = await store.facturarDocumentos(o.id, serieId!, [origen.id], { fechaExpedicion: b.fechaExpedicion, descripcionOperacion: b.descripcionOperacion });
+      } else f = await store.emitir(o.id, serieId!, b);
       toast(o.modo === "verifactu" ? `Factura ${f.numSerie} emitida: registro en cola de envío a la AEAT` : `Factura ${f.numSerie} emitida y registro firmado`);
       nav(`/facturas/${f.id}`, { replace: true });
     } catch (e) {
@@ -80,7 +110,9 @@ export default function NuevaFactura() {
 
   return (
     <>
-      <Titulo titulo={esRect ? "Nueva factura rectificativa" : "Nueva factura"} sub="Revisa los datos: al emitir se genera el registro de facturación encadenado y firmado, y ya no podrá modificarse." />
+      {destino.tipo === "factura" ? <Titulo titulo={esRect ? "Nueva factura rectificativa" : "Nueva factura"} sub="Revisa los datos: al emitir se genera el registro de facturación encadenado y firmado, y ya no podrá modificarse." />
+        : destino.tipo === "documento" ? <Titulo titulo={`${destino.id ? "Editar" : "Nuevo"} ${TITULOS[destino.clase]}`} sub={destino.clase === "borrador" ? "Un borrador no es una factura: no tiene número ni registro hasta que lo emitas." : "No es una factura ni genera registro de facturación; podrás convertirlo en factura con un clic."} />
+        : <Titulo titulo={destino.id ? "Editar factura recurrente" : "Nueva factura recurrente"} sub="Plantilla que genera una factura cada periodo: se emite automáticamente o se deja como borrador para revisarla." />}
       <div className="grid lg:grid-cols-[1fr_340px] gap-5 items-start">
         <div className="space-y-5">
           <Panel>
@@ -92,8 +124,16 @@ export default function NuevaFactura() {
                 </select>
               </Campo>
               <Campo label="Serie"><select className="input" value={serieId} onChange={(e) => setSerieId(Number(e.target.value))}>{series.map((s) => <option key={s.id} value={s.id}>{s.codigo} · siguiente nº {s.ultimoNumero + 1}</option>)}</select></Campo>
-              <Campo label="Fecha de expedición"><input className="input" type="date" value={b.fechaExpedicion ?? store.hoy(o.id)} max={store.hoy(o.id)} onChange={(e) => set({ fechaExpedicion: e.target.value })} /></Campo>
+              {destino.tipo === "factura" ? <Campo label="Fecha de expedición"><input className="input" type="date" value={b.fechaExpedicion ?? store.hoy(o.id)} max={store.hoy(o.id)} onChange={(e) => set({ fechaExpedicion: e.target.value })} /></Campo>
+                : destino.tipo === "documento" && destino.clase === "presupuesto" ? <Campo label="Válido hasta"><input className="input" type="date" value={validez} onChange={(e) => setValidez(e.target.value)} /></Campo> : <div />}
             </div>
+            {destino.tipo === "recurrente" && <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <div className="sm:col-span-2"><Campo label="Nombre"><input className="input" value={rec.nombre} onChange={(e) => setRec({ ...rec, nombre: e.target.value })} placeholder="p. ej. Cuota mensual de mantenimiento" /></Campo></div>
+              <Campo label="Periodicidad"><select className="input" value={rec.periodicidad} onChange={(e) => setRec({ ...rec, periodicidad: e.target.value as Periodicidad })}><option value="mensual">Mensual</option><option value="trimestral">Trimestral</option><option value="semestral">Semestral</option><option value="anual">Anual</option></select></Campo>
+              <Campo label="Próxima factura"><input className="input" type="date" value={rec.proxima} onChange={(e) => setRec({ ...rec, proxima: e.target.value })} /></Campo>
+              <Campo label="Hasta (opcional)"><input className="input" type="date" value={rec.hasta} onChange={(e) => setRec({ ...rec, hasta: e.target.value })} /></Campo>
+              <label className="sm:col-span-2 lg:col-span-3 flex items-center gap-2 text-sm self-end pb-2"><input type="checkbox" className="h-4 w-4" checked={rec.autoEmitir} onChange={(e) => setRec({ ...rec, autoEmitir: e.target.checked })} />Emitir automáticamente (si no, se crea un borrador para revisarlo)</label>
+            </div>}
             {b.tipoFactura !== "F2" && b.tipoFactura !== "R5" && (
               <div className="grid sm:grid-cols-[1fr_auto] gap-3 mt-4 items-end">
                 <Campo label="Cliente"><select className="input" value={b.terceroId ?? ""} onChange={(e) => elegirCliente(e.target.value ? Number(e.target.value) : undefined)} data-testid="select-cliente">
@@ -147,7 +187,14 @@ export default function NuevaFactura() {
               {errores.map((e, i) => <p key={i} className="flex gap-2 text-bad"><AlertCircle size={15} className="shrink-0 mt-0.5" /><span>{e.mensaje}</span></p>)}
               {avisos.map((e, i) => <p key={`a${i}`} className="flex gap-2 text-warn"><Info size={15} className="shrink-0 mt-0.5" /><span>{e.mensaje}</span></p>)}
             </Panel>)}
-          <button className="btn-primary w-full h-12 text-base" disabled={errores.length > 0 || !serieId} onClick={() => setConfirmar(true)}><Send size={17} />Emitir factura</button>
+          {destino.tipo === "factura" ? <>
+            <button className="btn-primary w-full h-12 text-base" disabled={errores.length > 0 || !serieId} onClick={() => setConfirmar(true)}><Send size={17} />Emitir factura</button>
+            {!esRect && !loc.state?.documentoOrigen && <button className="btn-ghost w-full" onClick={async () => { const d = await store.guardarDocumento(o.id, { clase: "borrador", borrador: b }); toast(`Guardado como borrador ${d.numero}`); nav("/documentos/borrador"); }}><Save size={16} />Guardar como borrador</button>}
+          </> : <>
+            <button className="btn-primary w-full h-12 text-base" disabled={busy || (destino.tipo === "recurrente" && (errores.length > 0 || !serieId))} onClick={guardarOtro}>{destino.tipo === "recurrente" ? <Repeat size={17} /> : <Save size={17} />}Guardar</button>
+            {errEmit && <p className="text-sm text-bad" role="alert">{errEmit}</p>}
+            {destino.tipo === "documento" && errores.length > 0 && <p className="text-xs text-muted">Puedes guardarlo aunque falten datos: se exigirán al facturar.</p>}
+          </>}
         </div>
       </div>
 

@@ -13,6 +13,12 @@ import Registro from "./pages/Registro";
 import Ajustes from "./pages/Ajustes";
 import Envios from "./pages/Envios";
 import Login from "./pages/Login";
+import Gastos from "./pages/Gastos";
+import Documentos from "./pages/Documentos";
+import Recurrentes from "./pages/Recurrentes";
+import Cobros from "./pages/Cobros";
+import Informes from "./pages/Informes";
+import Importar from "./pages/Importar";
 import { Logo } from "./ui/kit";
 
 function Rutas() {
@@ -35,6 +41,14 @@ function Rutas() {
         <Route path="registro" element={<Registro />} />
         <Route path="ajustes" element={<Ajustes />} />
         <Route path="envios" element={<Envios />} />
+        <Route path="gastos" element={<Gastos />} />
+        <Route path="documentos/nuevo" element={<NuevaFactura key="doc" destino={{ tipo: "documento", clase: "presupuesto" }} />} />
+        <Route path="documentos/:clase" element={<Documentos />} />
+        <Route path="recurrentes" element={<Recurrentes />} />
+        <Route path="recurrentes/nueva" element={<NuevaFactura key="rec" destino={{ tipo: "recurrente" }} />} />
+        <Route path="cobros" element={<Cobros />} />
+        <Route path="informes" element={<Informes />} />
+        <Route path="importar" element={<Importar />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>);

@@ -6,7 +6,7 @@
   <a href="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Licencia AGPL-3.0" src="https://img.shields.io/badge/licencia-AGPL--3.0-black">
   <img alt="VERI*FACTU" src="https://img.shields.io/badge/VERI*FACTU-y%20No%20VERI*FACTU-black">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-158%20%2B%202%20E2E-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-184%20%2B%202%20E2E-2ea44f">
   <img alt="Telemetría" src="https://img.shields.io/badge/telemetr%C3%ADa-cero-black">
 </p>
 
@@ -59,10 +59,26 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 <td width="45%"><img src="docs/assets/app-claro.png" alt="Tema claro"><p align="center"><sub>Tema claro con el mismo lenguaje liquid glass</sub></p></td>
 </tr></table>
 
+### 💼 Gestión del día a día
+
+<p align="center"><img src="docs/assets/gestion.gif" alt="Presupuestos, gastos, cobros e informes" width="92%"></p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/assets/app-presupuestos.png" alt="Presupuestos y albaranes"><p align="center"><sub><b>Presupuestos y albaranes</b> · de presupuesto a albarán y a factura con un clic</sub></p></td>
+<td width="50%"><img src="docs/assets/app-gastos.png" alt="Gastos con adjuntos"><p align="center"><sub><b>Gastos</b> · IVA soportado, % deducible, retenciones y justificantes adjuntos</sub></p></td>
+</tr>
+<tr>
+<td><img src="docs/assets/app-cobros.png" alt="Cobros e impagos"><p align="center"><sub><b>Cobros e impagos</b> · cobros parciales, recordatorios y conciliación bancaria</sub></p></td>
+<td><img src="docs/assets/app-informes.png" alt="Informes"><p align="center"><sub><b>Informes</b> · libros, IVA trimestral y pago fraccionado (orientativos) y paquete para el gestor</sub></p></td>
+</tr>
+</table>
+
 <p align="center">
-  <img src="docs/assets/app-movil-panel.png" alt="Panel en móvil" width="30%">&nbsp;&nbsp;
-  <img src="docs/assets/app-movil-nueva.png" alt="Nueva factura en móvil" width="30%">
-  <br><sub>Mismo aspecto y mismas opciones en el móvil, con navegación inferior.</sub>
+  <img src="docs/assets/app-movil-panel.png" alt="Panel en móvil" width="28%">&nbsp;&nbsp;
+  <img src="docs/assets/app-movil-nueva.png" alt="Nueva factura en móvil" width="28%">&nbsp;&nbsp;
+  <img src="docs/assets/app-movil-mas.png" alt="Menú «Más» en móvil" width="28%">
+  <br><sub>Mismo aspecto y mismas opciones en el móvil, con navegación inferior y menú «Más».</sub>
 </p>
 
 ## ✨ Qué hace
@@ -75,6 +91,10 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 | ✍️ **Firma XAdES-EPES** | Firma de registros y eventos en modo No VERI\*FACTU con tu certificado (.p12 o almacén del sistema). |
 | 📡 **Envío VERI\*FACTU** | SOAP a la AEAT con cola, reintentos y control de flujo (60 s / 1000 registros). |
 | 🗂️ **Registro de eventos** | Inmutable y encadenado, con resumen cada 6 horas. |
+| 📋 **Presupuestos, albaranes y recurrentes** | Convierte un presupuesto en albarán o factura con un clic, agrupa albaranes en una factura y programa cuotas mensuales, trimestrales o anuales. |
+| 💸 **Gastos y cobros** | Facturas recibidas y tickets con adjuntos, cobros parciales, avisos de impago por email o WhatsApp y conciliación con el extracto del banco (CSV/Excel). |
+| 📊 **Informes para tus impuestos** | Libros de facturas emitidas y recibidas, resumen trimestral de IVA y pago fraccionado del IRPF **como ayuda orientativa** (no se presentan), ventas por cliente y un ZIP listo para tu gestor. |
+| 🔁 **Importación y Facturae** | Importa clientes y productos desde CSV o Excel. Exportación opcional a **Facturae 3.2.2** (validada contra el esquema oficial, sin firmar; desactivada por defecto). |
 | 🏠 **Tus datos son tuyos** | Modo local sin cuenta (SQLite cifrable) o servidor propio en Docker. Cero telemetría. |
 
 ## 🧭 Dos modos, la misma app
@@ -111,7 +131,7 @@ Los binarios pueden ir **sin firmar** mientras el proyecto no disponga de certif
 - [x] **Fase 3 — Diseño y PDF**: PDF vectorial propio (pdf-lib) con plantillas Moderna/Clásica/Minimal, logo, color, notas y pie legal; multipágina con el QR solo en la primera; editor con vista previa; tema claro; transiciones; resumen de eventos al cerrar la ventana en Tauri. Tests que **escanean el QR** del PDF y miden su tamaño y posición.
 - [x] **Fase 4 — Empaquetado y releases**: workflow por etiqueta `v*` con Windows (.exe/.msi/portable), macOS universal, Linux (AppImage/.deb/.rpm), Android (.apk/.aab), imagen Docker multi-arch, PWA instalable sin conexión, `SHA256SUMS`, changelog automático y autoactualización firmada (opcional, desactivable). iOS preparado.
 - [x] **Fase 5 — Servidor y VERI\*FACTU**: servidor multiusuario (argon2id, 2FA, roles, rate limiting, auditoría), envío VERI\*FACTU con cola, control de flujo, reintentos, respuestas con códigos oficiales, subsanación y anulación según los cuadros oficiales, panel de envíos; VERI\*FACTU también en la app de escritorio. Probado de extremo a extremo contra un **simulador** propio con TLS de certificado de cliente ([detalles](docs/VERIFACTU.md)).
-- [ ] Fase 6 — Informes (303/130 como ayuda), gastos, recordatorios
+- [x] **Fase 6 — Gestión comercial e informes**: gastos con adjuntos, presupuestos → albaranes → facturas, facturas recurrentes, cobros parciales, recordatorios de impago, conciliación bancaria, libros registro, resúmenes orientativos de IVA (303) e IRPF (130), ventas por cliente, exportación Excel/CSV, paquete para el gestor, importación de clientes y productos y Facturae 3.2.2 (módulo opcional).
 - [ ] Fase 7 — Documentación de cumplimiento y pulido
 
 ## 🧑‍💻 Desarrollo
@@ -122,7 +142,7 @@ Requisitos: Node 22.13+, pnpm 10, `xmllint` (paquete `libxml2-utils`) para valid
 pnpm install
 pnpm --filter @astrofact/client dev   # la app en http://localhost:5173 (navegador)
 pnpm --filter @astrofact/client tauri dev  # la app de escritorio (Tauri 2)
-pnpm --filter @astrofact/client e2e   # prueba E2E de emisión con Playwright
+pnpm --filter @astrofact/client e2e   # E2E con Playwright: emisión, gastos, presupuestos, cobros, informes…
 pnpm test            # todos los tests
 pnpm -r build        # compila los paquetes
 pnpm normativa:fetch # vuelve a descargar la normativa oficial y comprueba si ha cambiado
@@ -145,6 +165,7 @@ const qr = urlQr({ nif: registro.IDFactura.IDEmisorFactura, numSerie: registro.I
 - [Arquitectura y esquema de base de datos](docs/arquitectura.md)
 - [Normativa oficial utilizada (versiones y hashes)](docs/normativa/README.md) · [Puntos abiertos](docs/TODO-normativa.md)
 - [Plantilla de declaración responsable](docs/cumplimiento/declaracion-responsable.md)
+- [Gestión comercial e informes](docs/GESTION.md)
 - [VERI\*FACTU: funcionamiento, simulador y pruebas](docs/VERIFACTU.md) · [Servidor autohospedado](docs/SERVIDOR.md) · [Publicar versiones](docs/RELEASES.md)
 
 ## ⚖️ Aviso legal

@@ -121,6 +121,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (fase !== "lista" || modo !== "local") return;
     const s = storeRef.current!, id = s.obligado()!.id;
     const motor = verifactuLocalDisponible() ? new MotorVerifactu(s, transporteTauri()) : null;
+    // Facturas recurrentes: al abrir y cada hora (en modo servidor las procesa el servidor)
+    const recurrentes = () => { void s.procesarRecurrentes(id).then((r) => {
+      if (r.emitidas.length) toast(`${r.emitidas.length} factura(s) recurrente(s) emitida(s)`);
+      if (r.borradores.length) toast(`${r.borradores.length} borrador(es) de facturas recurrentes para revisar`);
+      for (const e of r.errores) toast(e, "error");
+    }).catch(() => undefined); };
+    recurrentes();
+    const ivRec = window.setInterval(recurrentes, 3_600_000);
     const iv = window.setInterval(() => { void s.tick(id); }, 60_000);
     const ivEnvio = window.setInterval(() => { if (motor && s.obligado(id)?.modo === "verifactu") void motor.tick(id).catch(() => undefined); }, 5000);
     const alCerrar = () => { if (document.visibilityState === "hidden") { void s.cierre(id).then(guardarAhora); } };
@@ -130,7 +138,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void import("@tauri-apps/api/window").then(({ getCurrentWindow }) => getCurrentWindow().onCloseRequested(async () => { await s.cierre(id); await guardarAhora(); }))
         .then((un) => { quitar = un; }).catch(() => undefined);
     }
-    return () => { window.clearInterval(iv); window.clearInterval(ivEnvio); document.removeEventListener("visibilitychange", alCerrar); quitar?.(); };
+    return () => { window.clearInterval(iv); window.clearInterval(ivRec); window.clearInterval(ivEnvio); document.removeEventListener("visibilitychange", alCerrar); quitar?.(); };
   }, [fase, modo, guardarAhora]);
 
   const desbloquear = useCallback(async (pass: string) => {

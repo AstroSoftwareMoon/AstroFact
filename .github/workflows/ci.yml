@@ -18,11 +18,11 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y libxml2-utils poppler-utils
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db --filter @astrofact/pdf --filter @astrofact/aeat-sim --filter @astrofact/server test
+      - run: pnpm --filter @astrofact/fiscal-core --filter @astrofact/db --filter @astrofact/pdf --filter @astrofact/informes --filter @astrofact/aeat-sim --filter @astrofact/server test
       - run: pnpm --filter @astrofact/client build:web
       - run: pnpm --filter @astrofact/fiscal-core build
       - name: Los ejemplos oficiales siguen validando
-        run: cd docs/normativa && xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml
+        run: cd docs/normativa && xmllint --noout --schema xsd/SuministroInformacion.xsd ejemplos/ejemploRegistro-firmado-epes-xades4j.xml && xmllint --noout facturae/Facturaev3_2_2.xsd
 
   e2e:
     name: E2E emisión (Playwright)

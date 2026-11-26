@@ -19,6 +19,7 @@ export function generarReplica(dbPath: string): Uint8Array {
       UPDATE certificado SET p12_cifrado = x'', kdf_json = '{}';
       DELETE FROM meta WHERE clave LIKE 'vf_flujo:%';
       UPDATE envio_aeat SET peticion_xml = NULL, respuesta_xml = NULL;
+      UPDATE adjunto SET datos = x''; -- los adjuntos se descargan bajo demanda (adjuntoDatos)
       VACUUM;`);
     d.close();
     return new Uint8Array(readFileSync(f));

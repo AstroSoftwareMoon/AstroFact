@@ -56,7 +56,7 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
     await store.arranque(o.id);
   }
 
-  const app = Fastify({ logger: c.logger ?? false, trustProxy: true, bodyLimit: 10 * 1024 * 1024 });
+  const app = Fastify({ logger: c.logger ?? false, trustProxy: true, bodyLimit: 16 * 1024 * 1024 /* adjuntos de hasta 10 MB en base64 */ });
   await app.register(rateLimit, { global: true, max: 600, timeWindow: "1 minute" });
 
   app.addHook("onSend", async (req, rep, payload) => {
@@ -87,7 +87,7 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
     rep.code(code >= 400 && code < 600 ? code : 400).send({ error: err.issues ? "Datos no válidos" : err.message, incidencias: err.incidencias });
   });
 
-  app.get("/api/salud", async () => ({ estado: "ok", version: c.version, fase: 5 }));
+  app.get("/api/salud", async () => ({ estado: "ok", version: c.version, fase: 6 }));
   app.get("/api/estado", async (req) => ({ instalado: usuarios.hayUsuarios(), negocio: !!store.obligado(), usuario: usuarios.sesion(tokenDe(req)) ?? null, version: c.version, aeatSimulada: !!c.aeatUrl }));
 
   const Credenciales = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(500), codigo: z.string().max(10).optional(), nombre: z.string().max(120).optional() });
@@ -146,7 +146,7 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
       const pass = m === "desbloquearCertificado" ? (a1 as string) : m === "guardarCertificado" ? a2 : (a1 as string);
       if (recordar) db.run("INSERT INTO secreto (clave, valor) VALUES (?, ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor", [`cert:${oid}`, cifrarTexto(clave, pass)]);
     }
-    if (m === "emitir" || m === "anular" || m === "subsanar") setImmediate(() => { void ciclo(); });
+    if (m === "emitir" || m === "anular" || m === "subsanar" || m === "facturarDocumentos" || m === "procesarRecurrentes") setImmediate(() => { void ciclo(); });
     store.auditar(`rpc.${m}`, { usuario: req.usuario!.id });
     return { resultado: serializar(r) };
   });
@@ -156,7 +156,10 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
   const ciclo = async () => {
     for (const o of store.obligados()) {
       try { await motor.tick(o.id); } catch (e) { app.log.error(e); }
-      if (Date.now() - ultimoTick > 60_000) { try { await store.tick(o.id); } catch (e) { app.log.error(e); } }
+      if (Date.now() - ultimoTick > 60_000) {
+        try { await store.tick(o.id); } catch (e) { app.log.error(e); }
+        try { const r = await store.procesarRecurrentes(o.id); for (const e of r.errores) app.log.warn(e); } catch (e) { app.log.error(e); }
+      }
     }
     if (Date.now() - ultimoTick > 60_000) ultimoTick = Date.now();
   };

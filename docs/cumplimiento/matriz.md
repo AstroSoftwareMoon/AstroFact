@@ -45,3 +45,10 @@ Fase actual: **5 (servidor y VERI*FACTU)**.
 | Gestión de respuestas: aceptado / con errores / rechazado, CSV, códigos oficiales | Validaciones 4; errores.properties | `aeat/response.ts`, `aeat/errores.ts`, `db/verifactu.ts` | `aeat.test.ts`, `integracion.test.ts` | ✅ |
 | Panel de estado de cada envío y de cada factura | Encargo | `client/pages/Envios.tsx`, `EstadoFactura.tsx` | `e2e/servidor.cjs` | ✅ |
 | Usuarios: argon2id, 2FA TOTP, roles, rate limiting, auditoría | Encargo §6 | `apps/server/src/usuarios.ts`, `app.ts` | `servidor.test.ts` | ✅ |
+| Documentos comerciales (presupuesto, albarán, borrador) separados de las facturas: no generan registro hasta facturarse | RRSIF art. 8 (registro al expedir) | `db/src/gestion.ts` (`documento`, `facturarDocumentos`) | `gestion.test.ts`, `e2e/run.cjs` | ✅ |
+| Facturas recurrentes sin fechas futuras: se expiden con la fecha del día en que se procesan | RD 1619/2012 art. 6.1.c; Orden art. 12 | `gestion.ts` (`procesarRecurrentes`) | `gestion.test.ts` | ✅ |
+| Conservación de facturas recibidas y justificantes (adjuntos con hash SHA-256) | LGT art. 29.2.d; RD 1619/2012 art. 19 | `gestion.ts` (`adjunto`), aviso al eliminar | `gestion.test.ts`, `servidor.test.ts` | ✅ |
+| Libros registro de facturas emitidas y recibidas (exportables) | RIVA art. 62–64 | `packages/informes/src/libros.ts` | `informes.test.ts` | ✅ (formato orientativo, no SII) |
+| Resumen de IVA y pago fraccionado **como ayuda**, sin presentar ni asignar casillas | LIVA; RIRPF art. 110 y 30.2.ª | `informes/src/iva.ts`, `irpf.ts`; aviso en `Informes.tsx` | `informes.test.ts` | ✅ (TODO #15 criterio de caja) |
+| Facturae 3.2.2 conforme al esquema oficial (módulo opcional, desactivado por defecto) | Orden HAP/1650/2015; XSD Facturae 3.2.2 | `informes/src/facturae.ts` | `informes.test.ts` (xmllint) | 🟡 sin firma (TODO #14) |
+| Importación de clientes/productos con validación de NIF | RD 1065/2007 (NIF) | `informes/src/importar.ts`, `Importar.tsx` | `informes.test.ts`, `e2e/run.cjs` | ✅ |

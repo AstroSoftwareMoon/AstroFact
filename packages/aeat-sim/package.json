@@ -1,6 +1,6 @@
 {
   "name": "@astrofact/aeat-sim",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Simulador del servicio web VERI*FACTU de la AEAT para pruebas e integración (no es la AEAT).",
   "license": "AGPL-3.0-or-later",

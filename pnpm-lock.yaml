@@ -29,6 +29,9 @@ importers:
       '@astrofact/fiscal-core':
         specifier: workspace:*
         version: link:../../packages/fiscal-core
+      '@astrofact/informes':
+        specifier: workspace:*
+        version: link:../../packages/informes
       '@astrofact/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
