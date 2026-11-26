@@ -1,12 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import initSqlJs, { type SqlJsStatic } from "sql.js";
 import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
-import { AstroFactStore, MotorVerifactu, PRODUCTOR_POR_DEFECTO, crearCifrador, desempaquetarCifrado, estaCifrado, kdfDeContenedor, type Obligado } from "@astrofact/db";
+import { AstroFactStore, MotorVerifactu, PRODUCTOR_POR_DEFECTO, crearCifrador, crearCopia, evaluarRestauracion, leerCopia, registrarRestauracion, type VeredictoRestauracion, type ManifiestoCopia, desempaquetarCifrado, estaCifrado, kdfDeContenedor, type Obligado } from "@astrofact/db";
 import { sqljsDriver, type SqlJsDriver } from "@astrofact/db/sqljs";
 import { cargarBytes, guardarBytes, pref } from "../platform/storage";
 import { ClienteServidor, crearStoreRemoto, guardarUrlServidor, urlServidorGuardada, type UsuarioServidor } from "../platform/remoto";
 import { transporteTauri, verifactuLocalDisponible } from "../platform/transporte";
 import { textos, type Clave, type Idioma } from "../i18n";
+import { productorSif } from "../cumplimiento";
 
 export type Modo = "local" | "servidor";
 type Fase = "cargando" | "bloqueada" | "bienvenida" | "login" | "lista" | "error";
@@ -20,6 +21,10 @@ interface Ctx {
   terminarBienvenida: () => Promise<void>; crearStoreNuevo: () => AstroFactStore;
   toast: (texto: string, tipo?: Toast["tipo"]) => void; toasts: Toast[];
   guardarAhora: () => Promise<void>;
+  // Copias de seguridad (.astro)
+  crearCopiaLocal: (password: string) => Promise<Uint8Array>;
+  analizarCopia: (bytes: Uint8Array, password: string) => Promise<{ manifiesto: ManifiestoCopia; veredicto: VeredictoRestauracion; db: Uint8Array }>;
+  restaurarCopia: (db: Uint8Array, manifiesto: ManifiestoCopia) => Promise<void>;
   // Modo servidor
   cliente: ClienteServidor | null; usuario: UsuarioServidor | null;
   conectar: (url: string) => Promise<{ instalado: boolean }>;
@@ -71,7 +76,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const sql = await cargarSql();
     const d = sqljsDriver(sql, bytes);
     driverRef.current = d;
-    const s = new AstroFactStore(d, { onCambio: programarGuardado, productor: { ...PRODUCTOR_POR_DEFECTO, Version: __APP_VERSION__ } });
+    const s = new AstroFactStore(d, { onCambio: programarGuardado, productor: productorSif() });
     storeRef.current = s;
     const o = s.obligado();
     if (!o) { setFase("bienvenida"); return; }
@@ -177,6 +182,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [montarLocal]);
 
   const crearStoreNuevo = useCallback(() => storeRef.current!, []);
+
+  /* ---------------- Copias de seguridad ---------------- */
+  const crearCopiaLocal = useCallback(async (password: string) => {
+    const d = driverRef.current; if (!d) throw new Error("En modo servidor, la copia la descarga el propietario desde el servidor");
+    const c = await crearCopia(d.exportar(), password, __APP_VERSION__);
+    pref.set("ultimaCopia", new Date().toISOString());
+    return c;
+  }, []);
+  const analizarCopia = useCallback(async (bytes: Uint8Array, password: string) => {
+    const { manifiesto, db } = await leerCopia(bytes, password);
+    const sql = await cargarSql();
+    const temporal = new AstroFactStore(sqljsDriver(sql, db));
+    const actual = storeRef.current?.obligado() ? storeRef.current : undefined;
+    return { manifiesto, db, veredicto: await evaluarRestauracion(actual, temporal) };
+  }, []);
+  const restaurarCopia = useCallback(async (db: Uint8Array, manifiesto: ManifiestoCopia) => {
+    if (modo !== "local") throw new Error("La restauración en modo servidor se hace en el propio servidor");
+    await montarLocal(db);
+    const s = storeRef.current!;
+    await registrarRestauracion(s, manifiesto);     // evento 07; se firma al desbloquear el certificado
+    await guardarAhora();
+    setRev((r) => r + 1);
+  }, [modo, montarLocal, guardarAhora]);
   const terminarBienvenida = useCallback(async () => {
     const s = storeRef.current!; const o = s.obligado()!;
     await s.arranque(o.id);
@@ -188,7 +216,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = useMemo<Ctx>(() => ({
     fase, error, modo, store: storeRef.current!, obligado: storeRef.current?.obligado() as Obligado, rev, t, idioma,
     setIdioma: (i) => { pref.set("idioma", i); setIdiomaS(i); }, tema, setTema: (x) => { pref.set("tema", x); setTemaS(x); },
-    cifrada, activarCifrado, desbloquear, terminarBienvenida, crearStoreNuevo, toast, toasts, guardarAhora,
+    cifrada, activarCifrado, desbloquear, terminarBienvenida, crearStoreNuevo, toast, toasts, guardarAhora, crearCopiaLocal, analizarCopia, restaurarCopia,
     cliente, usuario, conectar, entrarServidor, salir, usarLocal,
     puede: (rol) => modo === "local" || (!!usuario && NIVEL[usuario.rol] >= NIVEL[rol]),
   // eslint-disable-next-line react-hooks/exhaustive-deps

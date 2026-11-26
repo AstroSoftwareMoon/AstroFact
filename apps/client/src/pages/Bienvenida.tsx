@@ -6,6 +6,7 @@ import { useApp } from "../state/app";
 import { Campo, Chip, Logo } from "../ui/kit";
 import { ejemploFactura } from "./ejemplo";
 import AccesoServidor from "../components/AccesoServidor";
+import { RestaurarCopia } from "../components/Copias";
 import { verifactuLocalDisponible } from "../platform/transporte";
 
 const PASOS = ["idioma", "uso", "negocio", "serie", "cert", "seguridad", "listo"] as const;
@@ -18,6 +19,7 @@ export default function Bienvenida() {
   // En modo servidor ya autenticado, el asistente empieza en «negocio»
   const [paso, setPaso] = useState(remoto && app.usuario ? 2 : 0);
   const [usoServidor, setUsoServidor] = useState(false);
+  const [restaurar, setRestaurar] = useState(false);
   const vfPosible = remoto || verifactuLocalDisponible();
   useEffect(() => { if (remoto && app.usuario) setPaso((p) => Math.max(p, 2)); }, [remoto, app.usuario]);
   const [modalidad, setModalidad] = useState<"no_verifactu" | "verifactu">("no_verifactu");
@@ -72,7 +74,9 @@ export default function Bienvenida() {
                   </button>))}
               </div>
             </div>
+            {!remoto && <button className="text-sm text-accent mt-5" onClick={() => setRestaurar(true)}>¿Vienes de otro equipo? Restaura una copia .astro</button>}
             <p className="text-xs text-muted mt-6">AstroFact no sustituye a tu asesor fiscal ni está «certificado» por la AEAT (no existe tal certificación). Cero telemetría.</p>
+            <RestaurarCopia abierto={restaurar} onClose={() => setRestaurar(false)} onHecho={() => nav("/")} />
           </>)}
 
           {id === "uso" && (<>

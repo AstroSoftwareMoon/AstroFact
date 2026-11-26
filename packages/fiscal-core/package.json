@@ -1,6 +1,6 @@
 {
   "name": "@astrofact/fiscal-core",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Núcleo fiscal de AstroFact: registros de facturación, huella, encadenado, QR, firma XAdES y SOAP VERI*FACTU. Sin dependencias de UI.",
   "license": "AGPL-3.0-or-later",
   "type": "module",

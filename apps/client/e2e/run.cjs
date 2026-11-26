@@ -165,6 +165,30 @@ async function esperarServidor(url, ms = 30000) {
     assert.ok(/gastos\/.*ticket\.pdf/.test(lista), "falta el adjunto del gasto en el paquete");
     console.log("  ✓ Paquete para el gestor:", lista.trim().split("\n").length, "ficheros");
 
+    // ---------------- Fase 7: cumplimiento y copias de seguridad ----------------
+    await page.goto(`http://localhost:${PORT}/#/cumplimiento`);
+    await page.getByTestId("texto-legal").getByText(/DECLARACIÓN RESPONSABLE DEL SISTEMA INFORMÁTICO DE FACTURACIÓN/).waitFor();
+    assert.match(await page.getByTestId("texto-legal").innerText(), /Identificador completo de la versión concreta del sistema informático: \d+\.\d+\.\d+/);
+    await page.getByText(/pendiente de suscribir/).waitFor();
+    await shot("app-cumplimiento");
+    await page.goto(`http://localhost:${PORT}/#/ajustes`);
+    await page.getByLabel("Contraseña de la copia", { exact: true }).fill("copia-de-prueba");
+    await page.getByLabel("Repetir contraseña de la copia").fill("copia-de-prueba");
+    const [copiaDl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Crear copia" }).click()]);
+    assert.match(copiaDl.suggestedFilename(), /^astrofact-89890001K-\d{4}-\d{2}-\d{2}\.astro$/);
+    const copiaPath = path.join(require("node:os").tmpdir(), `af-${Date.now()}.astro`); await copiaDl.saveAs(copiaPath);
+    assert.ok(!require("node:fs").readFileSync(copiaPath).includes("Estudio Lunar"), "la copia no está cifrada");
+    await page.getByRole("button", { name: /Restaurar una copia/ }).click();
+    await page.locator('input[type="file"][accept=".astro"]').setInputFiles(copiaPath);
+    await page.getByLabel("Contraseña de la copia").last().fill("copia-de-prueba");
+    await page.getByRole("button", { name: "Comprobar copia" }).click();
+    await page.getByText(/mismos registros de facturación/).waitFor();
+    await page.getByTestId("confirmar-restauracion").click();
+    await toastCon("Copia restaurada");
+    await page.goto(`http://localhost:${PORT}/#/cumplimiento`);
+    await page.getByText("Restauración de copia de seguridad").first().waitFor();
+    console.log("  ✓ Copia .astro creada, comprobada y restaurada (evento 07)");
+
     await page.getByRole("link", { name: /Panel/ }).first().click();
     await page.waitForTimeout(300);
     await shot("app-panel");

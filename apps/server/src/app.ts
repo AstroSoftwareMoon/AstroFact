@@ -8,14 +8,14 @@ import rateLimit from "@fastify/rate-limit";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { z } from "zod";
-import { AstroFactStore, MotorVerifactu, PRODUCTOR_POR_DEFECTO, type Transporte } from "@astrofact/db";
+import { AstroFactStore, MotorVerifactu, PRODUCTOR_POR_DEFECTO, crearCopia, type Transporte } from "@astrofact/db";
 import { nodeSqlite } from "@astrofact/db/node";
 import { transporteNode } from "@astrofact/db/transporte-node";
 import { ENDPOINTS } from "@astrofact/fiscal-core";
 import { claveMaestra, cifrarTexto, descifrarTexto } from "./seguridad";
 import { NIVEL, Usuarios, type Rol, type Usuario } from "./usuarios";
 import { ejecutar, rolDe, serializar } from "./rpc";
-import { generarReplica } from "./replica";
+import { copiaCompleta, generarReplica } from "./replica";
 
 export interface Config {
   webDir?: string; version: string; logger?: boolean; dataDir: string;
@@ -39,7 +39,7 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
   db.exec("CREATE TABLE IF NOT EXISTS secreto (clave TEXT PRIMARY KEY, valor TEXT NOT NULL)");
   const clave = claveMaestra(c.dataDir, c.secreto ?? process.env.ASTROFACT_SECRET);
   let rev = 1;
-  const store = new AstroFactStore(db, { ahora: c.ahora, onCambio: () => { rev++; }, productor: { ...PRODUCTOR_POR_DEFECTO, Version: c.version } });
+  const store = new AstroFactStore(db, { ahora: c.ahora, onCambio: () => { rev++; }, productor: { ...PRODUCTOR_POR_DEFECTO, Version: c.version, ...(process.env.ASTROFACT_PRODUCTOR_NOMBRE && process.env.ASTROFACT_PRODUCTOR_NIF ? { NombreRazon: process.env.ASTROFACT_PRODUCTOR_NOMBRE, NIF: process.env.ASTROFACT_PRODUCTOR_NIF.toUpperCase() } : {}) } });
   const usuarios = new Usuarios(db, clave, c.ahora);
   const transporte = c.transporte ?? transporteNode({ ca: c.aeatCa });
   const motor = new MotorVerifactu(store, transporte, { ahora: () => (c.ahora?.() ?? new Date()).getTime(), url: (e) => {
@@ -106,6 +106,13 @@ export async function crearServidor(c: Config): Promise<ReturnType<typeof Fastif
   });
   app.delete("/api/sesion", { preHandler: exigir("lectura") }, async (req) => { usuarios.cerrarSesion(req.token!); return { ok: true }; });
 
+  // Copia de seguridad cifrada (.astro) de todo el servidor; restauración: `node index.js restaurar <fichero>`
+  app.post("/api/copia", { preHandler: exigir("propietario"), config: { rateLimit: { max: 5, timeWindow: "1 minute" } } }, async (req, rep) => {
+    const { password } = z.object({ password: z.string().min(8).max(200) }).parse(req.body);
+    const bytes = await crearCopia(copiaCompleta(dbPath), password, c.version);
+    store.auditar("copia.crear", { usuario: req.usuario!.id, bytes: bytes.length });
+    return rep.type("application/octet-stream").header("Content-Disposition", `attachment; filename="astrofact-servidor-${new Date().toISOString().slice(0, 10)}.astro"`).send(Buffer.from(bytes));
+  });
   app.get("/api/usuarios", { preHandler: exigir("propietario") }, async () => usuarios.listar());
   const NuevoUsuario = Credenciales.extend({ rol: z.enum(["propietario", "contable", "lectura"]) });
   app.post("/api/usuarios", { preHandler: exigir("propietario") }, async (req) => {

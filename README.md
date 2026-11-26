@@ -6,7 +6,7 @@
   <a href="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/AstroSoftwareMoon/AstroFact/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Licencia AGPL-3.0" src="https://img.shields.io/badge/licencia-AGPL--3.0-black">
   <img alt="VERI*FACTU" src="https://img.shields.io/badge/VERI*FACTU-y%20No%20VERI*FACTU-black">
-  <img alt="Tests" src="https://img.shields.io/badge/tests-184%20%2B%202%20E2E-2ea44f">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-187%20%2B%202%20E2E-2ea44f">
   <img alt="Telemetría" src="https://img.shields.io/badge/telemetr%C3%ADa-cero-black">
 </p>
 
@@ -74,6 +74,10 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 </tr>
 </table>
 
+### ⚖️ Cumplimiento a la vista
+
+<p align="center"><img src="docs/assets/app-cumplimiento.png" alt="Cumplimiento: estado del sistema, declaración responsable y fechas de obligatoriedad" width="92%"><br><sub>Estado del sistema, declaración responsable dentro de la app, fechas de obligatoriedad configurables y normativa aplicada.</sub></p>
+
 <p align="center">
   <img src="docs/assets/app-movil-panel.png" alt="Panel en móvil" width="28%">&nbsp;&nbsp;
   <img src="docs/assets/app-movil-nueva.png" alt="Nueva factura en móvil" width="28%">&nbsp;&nbsp;
@@ -102,10 +106,10 @@ conservados en tu equipo). Se construye **solo** a partir de la documentación o
 | | 💻 **Local** | 🐳 **Autohospedado** |
 |---|---|---|
 | Cuenta | No hace falta | Usuarios con roles y 2FA |
-| Datos | En tu dispositivo (SQLite, cifrado opcional) | En tu servidor (SQLite o PostgreSQL) |
+| Datos | En tu dispositivo (SQLite, cifrado opcional) | En tu servidor (SQLite; PostgreSQL previsto) |
 | No VERI\*FACTU | ✅ completo | ✅ |
 | VERI\*FACTU | ✅ si hay internet y certificado | ✅ envío automático en segundo plano |
-| Copias | `.astro` automáticas | Programadas en el servidor |
+| Copias | `.astro` cifradas, con recordatorio | `.astro` desde la app o copia del volumen `/data` |
 
 ## ⬇️ Descargas
 
@@ -132,7 +136,7 @@ Los binarios pueden ir **sin firmar** mientras el proyecto no disponga de certif
 - [x] **Fase 4 — Empaquetado y releases**: workflow por etiqueta `v*` con Windows (.exe/.msi/portable), macOS universal, Linux (AppImage/.deb/.rpm), Android (.apk/.aab), imagen Docker multi-arch, PWA instalable sin conexión, `SHA256SUMS`, changelog automático y autoactualización firmada (opcional, desactivable). iOS preparado.
 - [x] **Fase 5 — Servidor y VERI\*FACTU**: servidor multiusuario (argon2id, 2FA, roles, rate limiting, auditoría), envío VERI\*FACTU con cola, control de flujo, reintentos, respuestas con códigos oficiales, subsanación y anulación según los cuadros oficiales, panel de envíos; VERI\*FACTU también en la app de escritorio. Probado de extremo a extremo contra un **simulador** propio con TLS de certificado de cliente ([detalles](docs/VERIFACTU.md)).
 - [x] **Fase 6 — Gestión comercial e informes**: gastos con adjuntos, presupuestos → albaranes → facturas, facturas recurrentes, cobros parciales, recordatorios de impago, conciliación bancaria, libros registro, resúmenes orientativos de IVA (303) e IRPF (130), ventas por cliente, exportación Excel/CSV, paquete para el gestor, importación de clientes y productos y Facturae 3.2.2 (módulo opcional).
-- [ ] Fase 7 — Documentación de cumplimiento y pulido
+- [x] **Fase 7 — Cumplimiento y pulido**: página de Cumplimiento con estado del sistema, declaración responsable dentro de la app (datos del productor fijados al compilar), fechas de obligatoriedad configurables, copias de seguridad `.astro` cifradas con restauración que nunca pierde registros (evento 07), guía para distribuidores, política de seguridad y guía de contribución.
 
 ## 🧑‍💻 Desarrollo
 
@@ -164,8 +168,8 @@ const qr = urlQr({ nif: registro.IDFactura.IDEmisorFactura, numSerie: registro.I
 - [Resumen de requisitos](docs/requisitos.md) · [Matriz de cumplimiento](docs/cumplimiento/matriz.md)
 - [Arquitectura y esquema de base de datos](docs/arquitectura.md)
 - [Normativa oficial utilizada (versiones y hashes)](docs/normativa/README.md) · [Puntos abiertos](docs/TODO-normativa.md)
-- [Plantilla de declaración responsable](docs/cumplimiento/declaracion-responsable.md)
-- [Gestión comercial e informes](docs/GESTION.md)
+- [Cumplimiento: guía para quien distribuye AstroFact](docs/cumplimiento/README.md) · [Plantilla de declaración responsable](docs/cumplimiento/declaracion-responsable.md)
+- [Gestión comercial e informes](docs/GESTION.md) · [Seguridad](SECURITY.md) · [Contribuir](CONTRIBUTING.md)
 - [VERI\*FACTU: funcionamiento, simulador y pruebas](docs/VERIFACTU.md) · [Servidor autohospedado](docs/SERVIDOR.md) · [Publicar versiones](docs/RELEASES.md)
 
 ## ⚖️ Aviso legal

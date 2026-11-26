@@ -147,6 +147,30 @@ describe("Servidor: VERI*FACTU y réplica", () => {
     expect(lista).toEqual(Object.keys(METODOS).sort());
   });
 
+  it("copia .astro solo para el propietario y restauración que no pierde registros", async () => {
+    const datos = dirDatos();
+    const app = await nuevo(datos); const t = await instalar(app);
+    await rpc(app, t, "crearObligado", [{ nif: NIF, nombre: "Estudio Lunar SL", territorio: "peninsula", modo: "no_verifactu", entorno: "pruebas" }]);
+    await app.inject({ method: "POST", url: "/api/usuarios", headers: auth(t), payload: { email: "conta@example.com", password: "clave-segura-123", rol: "contable" } });
+    const tc = (await app.inject({ method: "POST", url: "/api/sesion", payload: { email: "conta@example.com", password: "clave-segura-123" } })).json().token as string;
+    expect((await app.inject({ method: "POST", url: "/api/copia", headers: auth(tc), payload: { password: "clave-de-copia" } })).statusCode).toBe(403);
+    const r = await app.inject({ method: "POST", url: "/api/copia", headers: auth(t), payload: { password: "clave-de-copia" } });
+    expect(r.statusCode).toBe(200);
+    const { esCopiaAstro, leerCopia } = await import("@astrofact/db");
+    expect(esCopiaAstro(new Uint8Array(r.rawPayload))).toBe(true);
+    const f = join(dirDatos(), "s.astro"); writeFileSync(f, r.rawPayload);
+    await app.close();
+    const db = (await leerCopia(new Uint8Array(r.rawPayload), "clave-de-copia")).db;
+    const rdb = join(dirDatos(), "c.db"); writeFileSync(rdb, db);
+    const c = new DatabaseSync(rdb); expect(c.prepare("SELECT COUNT(*) AS n FROM sesion").get()).toEqual({ n: 0 }); expect(c.prepare("SELECT COUNT(*) AS n FROM usuario").get()).toEqual({ n: 2 }); c.close();
+    const { restaurar } = await import("../src/restaurar");
+    await expect(restaurar(f, datos, "mala-clave-123")).rejects.toThrow(/Contraseña/);
+    await restaurar(f, datos, "clave-de-copia");
+    const tras = new DatabaseSync(join(datos, "astrofact.db"));
+    expect(tras.prepare("SELECT tipo FROM registro_evento ORDER BY id DESC LIMIT 1").get()).toEqual({ tipo: "07" });
+    tras.close();
+  });
+
   it("producción bloqueada salvo autorización explícita", async () => {
     const app = await crearServidor({ dataDir: dirDatos(), version: "x", secreto: "y".repeat(40), intervaloEnvioMs: 3_600_000 });
     const t = await instalar(app as any);

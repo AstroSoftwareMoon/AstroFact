@@ -1,6 +1,6 @@
 [package]
 name = "astrofact"
-version = "0.6.0"
+version = "0.7.0"
 description = "AstroFact — facturación libre para autónomos y pymes (VERI*FACTU y No VERI*FACTU)"
 authors = ["AstroFact contributors"]
 license = "AGPL-3.0-or-later"

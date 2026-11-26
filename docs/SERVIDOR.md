@@ -24,7 +24,27 @@ facturas.miempresa.es {
 | `ASTROFACT_SECRET` | (se genera `secret.key`) | Clave maestra (≥ 32 caracteres) que cifra los secretos TOTP y la contraseña recordada del certificado |
 | `ASTROFACT_ORIGENES` | orígenes de Tauri | Orígenes CORS permitidos para la app de escritorio/móvil |
 | `ASTROFACT_PERMITIR_PRODUCCION` | — | `1` para permitir envíos a la AEAT de **producción** |
+| `ASTROFACT_PRODUCTOR_NOMBRE`, `ASTROFACT_PRODUCTOR_NIF` | — | Productor del sistema en el bloque `SistemaInformatico` de los registros (ver `docs/cumplimiento/README.md`) |
 | `ASTROFACT_AEAT_URL`, `ASTROFACT_AEAT_CA` | — | Solo desarrollo: URL y CA del simulador |
+
+## Copias de seguridad
+
+- **Desde la app** (propietario): Ajustes → Copias de seguridad → «Crear copia». Descarga un fichero
+  `.astro` con **toda** la base de datos (usuarios incluidos, sin sesiones abiertas) cifrado con AES-256-GCM
+  y la contraseña que elijas. Queda anotado en la auditoría.
+- **Restaurar** (con el servidor detenido):
+
+  ```bash
+  docker compose stop astrofact
+  docker compose run --rm -e ASTROFACT_COPIA_PASSWORD='…' -v "$PWD/copia.astro:/copia.astro:ro" astrofact node dist/index.js restaurar /copia.astro
+  docker compose start astrofact
+  ```
+
+  Solo se restaura si la copia no hace perder registros de facturación ya generados ni diverge de la cadena
+  actual; la base de datos anterior se conserva como `astrofact.db.previa-<fecha>` y la restauración queda
+  registrada como evento (tipo 07). Guarda también `secret.key` (o `ASTROFACT_SECRET`): sin ella no se pueden
+  descifrar los secretos TOTP ni la contraseña recordada del certificado.
+- Además, puedes copiar el volumen `/data` con tus herramientas habituales.
 
 ## Seguridad
 

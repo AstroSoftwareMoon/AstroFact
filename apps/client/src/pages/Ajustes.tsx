@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { FileKey2, Languages, Lock, Moon, Plus, Scale, Sun } from "lucide-react";
 import declaracion from "../../../../docs/cumplimiento/declaracion-responsable.md?raw";
 import avisoLegal from "../../../../docs/aviso-legal.md?raw";
 import { useApp } from "../state/app";
 import EditorPlantilla from "../components/EditorPlantilla";
 import Actualizaciones from "../components/Actualizaciones";
+import Copias from "../components/Copias";
 import { GestionUsuarios, MiCuenta } from "../components/CuentaServidor";
 import { verifactuLocalDisponible } from "../platform/transporte";
 import { Campo, Chip, Modal, Panel, Titulo } from "../ui/kit";
@@ -116,12 +117,13 @@ export default function Ajustes() {
         {app.modo === "servidor" && <MiCuenta />}
         {app.modo === "servidor" && <GestionUsuarios />}
 
+        <Copias />
         <div className="lg:col-span-2" id="plantilla"><EditorPlantilla /></div>
 
         <Panel className="lg:col-span-2">
           <h2 className="font-semibold mb-2 flex items-center gap-2"><Scale size={18} className="text-accent" />Legal</h2>
           <p className="text-sm text-muted">AstroFact no está «certificado» ni «homologado» por la AEAT —no existe tal cosa—: el productor suscribe una declaración responsable (art. 15 Orden HAC/1177/2024). No sustituye a tu asesor fiscal.</p>
-          <div className="flex flex-wrap gap-2 mt-3"><button className="btn-ghost" onClick={() => setDoc("decl")}>Declaración responsable</button><button className="btn-ghost" onClick={() => setDoc("aviso")}>Aviso legal</button></div>
+          <div className="flex flex-wrap gap-2 mt-3"><Link className="btn-ghost" to="/cumplimiento">Cumplimiento y declaración responsable</Link><button className="btn-ghost" onClick={() => setDoc("aviso")}>Aviso legal</button></div>
         </Panel>
       </div>
       <Modal abierto={!!doc} onClose={() => setDoc(null)} titulo={doc === "decl" ? "Declaración responsable" : "Aviso legal"} ancho="max-w-3xl">

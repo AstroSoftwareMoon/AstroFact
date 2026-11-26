@@ -25,3 +25,18 @@ export function generarReplica(dbPath: string): Uint8Array {
     return new Uint8Array(readFileSync(f));
   } finally { rmSync(dir, { recursive: true, force: true }); }
 }
+
+/** Copia completa (para «.astro»): toda la base de datos salvo las sesiones abiertas. */
+export function copiaCompleta(dbPath: string): Uint8Array {
+  const dir = mkdtempSync(join(tmpdir(), "af-copia-"));
+  const f = join(dir, "copia.db");
+  try {
+    const src = new DatabaseSync(dbPath);
+    src.exec(`VACUUM INTO '${f.replace(/'/g, "''")}'`);
+    src.close();
+    const d = new DatabaseSync(f);
+    d.exec("DELETE FROM sesion; VACUUM;");
+    d.close();
+    return new Uint8Array(readFileSync(f));
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+}

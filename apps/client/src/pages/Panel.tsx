@@ -1,13 +1,15 @@
 import { Link, useNavigate } from "react-router-dom";
-import { FilePlus2, Link2, ShieldCheck, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { DatabaseBackup, FilePlus2, Link2, ShieldCheck, Sparkles, TrendingUp, Wallet } from "lucide-react";
 import { D } from "@astrofact/fiscal-core";
 import { useApp } from "../state/app";
 import { Chip, Panel, Titulo, Vacio } from "../ui/kit";
 import { euros, fecha } from "../format";
 import { ejemploFactura } from "./ejemplo";
+import { diasDesdeCopia } from "../components/Copias";
 
 export default function PanelPage() {
-  const { store, obligado: o } = useApp();
+  const { store, obligado: o, modo } = useApp();
+  const copia = diasDesdeCopia();
   const nav = useNavigate();
   const hoy = store.hoy(o.id);
   const facturas = store.facturas(o.id).filter((f) => !f.anulada);
@@ -26,6 +28,11 @@ export default function PanelPage() {
   return (
     <>
       <Titulo titulo={o.nombre} sub="Resumen de tu facturación" acciones={<Link to="/facturas/nueva" className="btn-primary"><FilePlus2 size={16} />Nueva factura</Link>} />
+      {modo === "local" && facturas.length > 0 && (copia === undefined || copia > 30) && (
+        <div className="mb-4 rounded-2xl border border-warn/40 bg-warn/10 px-4 py-3 flex flex-wrap items-center gap-3 text-sm">
+          <DatabaseBackup size={18} className="text-warn shrink-0" /><span className="flex-1">{copia === undefined ? "Aún no tienes ninguna copia de seguridad de tus datos." : `Tu última copia de seguridad es de hace ${copia} días.`} Tus facturas solo están en este equipo.</span>
+          <Link to="/ajustes#copias" className="btn-ghost h-8">Hacer copia</Link>
+        </div>)}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         {kpis.map((k, i) => (
           <Panel key={k.label} style={{ animationDelay: `${i * 60}ms` }}>

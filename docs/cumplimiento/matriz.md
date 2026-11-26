@@ -36,7 +36,7 @@ Fase actual: **5 (servidor y VERI*FACTU)**.
 | Cálculo IVA, RE, IRPF, S2, exentas, IGIC | LIVA; FAQ AEAT | `src/invoice/calc.ts` | `calc.test.ts` | ✅ |
 | Aritmética exacta y redondeo | — | `src/decimal.ts` | `decimal.test.ts` | ✅ |
 | Rectificativas S/I | RRSIF; L2/L3 | `records/build.ts`, `validate.ts` | `records.test.ts`, `validate.test.ts` | ✅ |
-| Declaración responsable disponible en el sistema | Orden 15.3 | `docs/cumplimiento/declaracion-responsable.md` | — | 🟡 (pantalla en app fase 7) |
+| Declaración responsable disponible en el sistema | Orden 15.3 | `client/src/pages/Cumplimiento.tsx`, `cumplimiento.ts` (datos del productor al compilar) | `e2e/run.cjs` | ✅ (pendiente de los datos del productor, TODO #9) |
 | No afirmar certificación/homologación | Encargo / Orden 15 | README, app | revisión | ✅ |
 | RGPD: acceso y supresión compatibles con la conservación | RGPD art. 15, 17.3.b | `store.anonimizarTercero`, `exportarDatosTercero`; explicación en Clientes | `store.test.ts` | ✅ |
 | Cifrado en reposo opcional | — | `db/secure.ts` (PBKDF2 600k + AES-256-GCM) | `store.test.ts` | ✅ |
@@ -52,3 +52,6 @@ Fase actual: **5 (servidor y VERI*FACTU)**.
 | Resumen de IVA y pago fraccionado **como ayuda**, sin presentar ni asignar casillas | LIVA; RIRPF art. 110 y 30.2.ª | `informes/src/iva.ts`, `irpf.ts`; aviso en `Informes.tsx` | `informes.test.ts` | ✅ (TODO #15 criterio de caja) |
 | Facturae 3.2.2 conforme al esquema oficial (módulo opcional, desactivado por defecto) | Orden HAP/1650/2015; XSD Facturae 3.2.2 | `informes/src/facturae.ts` | `informes.test.ts` (xmllint) | 🟡 sin firma (TODO #14) |
 | Importación de clientes/productos con validación de NIF | RD 1065/2007 (NIF) | `informes/src/importar.ts`, `Importar.tsx` | `informes.test.ts`, `e2e/run.cjs` | ✅ |
+| Copias de seguridad cifradas que no rompen la trazabilidad; restauración registrada (evento 07) | Orden 8; EventosSIF (TipoEvento 07) | `db/src/copia.ts`, `server/src/restaurar.ts`, `Copias.tsx` | `copia.test.ts`, `servidor.test.ts`, `e2e/run.cjs` | ✅ (TODO #17) |
+| Fechas de obligatoriedad configurables | RD 1007/2023 DF 4.ª; encargo | `fiscal-core/constants.ts`, `Cumplimiento.tsx` | revisión | ✅ |
+

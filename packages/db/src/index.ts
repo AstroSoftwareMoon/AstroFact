@@ -5,3 +5,4 @@ export * from "./types";
 export * from "./store";
 export * from "./verifactu";
 export * from "./gestion";
+export * from "./copia";

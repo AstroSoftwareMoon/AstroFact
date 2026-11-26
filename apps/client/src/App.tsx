@@ -19,6 +19,7 @@ import Recurrentes from "./pages/Recurrentes";
 import Cobros from "./pages/Cobros";
 import Informes from "./pages/Informes";
 import Importar from "./pages/Importar";
+import Cumplimiento from "./pages/Cumplimiento";
 import { Logo } from "./ui/kit";
 
 function Rutas() {
@@ -49,6 +50,7 @@ function Rutas() {
         <Route path="cobros" element={<Cobros />} />
         <Route path="informes" element={<Informes />} />
         <Route path="importar" element={<Importar />} />
+        <Route path="cumplimiento" element={<Cumplimiento />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>);

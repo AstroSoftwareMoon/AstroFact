@@ -3,6 +3,8 @@
 #   TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD + variable TAURI_UPDATER_PUBKEY → autoactualización firmada
 #   APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID → macOS firmado y notarizado
 #   ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD → APK/AAB con firma estable
+# Variables (no secretas) de la declaración responsable, ver docs/cumplimiento/README.md:
+#   PRODUCTOR_NOMBRE, PRODUCTOR_NIF, PRODUCTOR_DIRECCION, PRODUCTOR_FECHA, PRODUCTOR_LUGAR, PRODUCTOR_CONTACTO
 name: Release
 on:
   push:
@@ -21,6 +23,12 @@ concurrency:
 
 env:
   TAG: ${{ github.event.inputs.tag || github.ref_name }}
+  VITE_PRODUCTOR_NOMBRE: ${{ vars.PRODUCTOR_NOMBRE }}
+  VITE_PRODUCTOR_NIF: ${{ vars.PRODUCTOR_NIF }}
+  VITE_PRODUCTOR_DIRECCION: ${{ vars.PRODUCTOR_DIRECCION }}
+  VITE_PRODUCTOR_FECHA: ${{ vars.PRODUCTOR_FECHA }}
+  VITE_PRODUCTOR_LUGAR: ${{ vars.PRODUCTOR_LUGAR }}
+  VITE_PRODUCTOR_CONTACTO: ${{ vars.PRODUCTOR_CONTACTO }}
 
 jobs:
   preparar:
@@ -207,7 +215,14 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          build-args: VERSION=${{ needs.preparar.outputs.version }}
+          build-args: |
+            VERSION=${{ needs.preparar.outputs.version }}
+            VITE_PRODUCTOR_NOMBRE=${{ vars.PRODUCTOR_NOMBRE }}
+            VITE_PRODUCTOR_NIF=${{ vars.PRODUCTOR_NIF }}
+            VITE_PRODUCTOR_DIRECCION=${{ vars.PRODUCTOR_DIRECCION }}
+            VITE_PRODUCTOR_FECHA=${{ vars.PRODUCTOR_FECHA }}
+            VITE_PRODUCTOR_LUGAR=${{ vars.PRODUCTOR_LUGAR }}
+            VITE_PRODUCTOR_CONTACTO=${{ vars.PRODUCTOR_CONTACTO }}
           provenance: true
           sbom: true
           cache-from: type=gha

@@ -1,7 +1,7 @@
 {
   "name": "astrofact",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "AstroFact — facturación libre para autónomos y pymes de España (VERI*FACTU y No VERI*FACTU)",
   "license": "AGPL-3.0-or-later",
   "packageManager": "pnpm@10.28.0",

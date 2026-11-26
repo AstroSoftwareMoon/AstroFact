@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { AlertTriangle, BarChart3, ClipboardList, FilePlus2, FileText, FileUp, Home, KeyRound, Link2, LogOut, Menu, Package, Receipt, Repeat, Send, Settings, Users, Wallet, X } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardList, FilePlus2, FileText, FileUp, Home, KeyRound, Link2, LogOut, Menu, Package, Receipt, Repeat, Send, Settings, ShieldCheck, Users, Wallet, X } from "lucide-react";
 import { useApp } from "../state/app";
 import { Logo, Modal, Campo } from "../ui/kit";
 import { useAvisoActualizacion } from "./Actualizaciones";
@@ -36,6 +36,7 @@ export default function Layout() {
       { to: "/informes", icon: BarChart3, label: "Informes" },
       ...(o.modo === "verifactu" ? [{ to: "/envios", icon: Send, label: "Envíos AEAT" }] : []),
       { to: "/registro", icon: Link2, label: t("nav.registro") },
+      { to: "/cumplimiento", icon: ShieldCheck, label: "Cumplimiento" },
     ] },
     { items: [{ to: "/ajustes", icon: Settings, label: t("nav.ajustes") }] },
   ];

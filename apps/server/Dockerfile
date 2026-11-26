@@ -13,6 +13,7 @@ COPY docs/cumplimiento ./docs/cumplimiento
 COPY docs/aviso-legal.md ./docs/aviso-legal.md
 COPY branding ./branding
 RUN pnpm install --frozen-lockfile --filter @astrofact/server... --filter @astrofact/client...
+ARG VITE_PRODUCTOR_NOMBRE VITE_PRODUCTOR_NIF VITE_PRODUCTOR_DIRECCION VITE_PRODUCTOR_FECHA VITE_PRODUCTOR_LUGAR VITE_PRODUCTOR_CONTACTO
 RUN pnpm --filter @astrofact/client exec vite build --mode web \
  && pnpm --filter @astrofact/server build \
  && pnpm --filter @astrofact/server deploy --prod --legacy /out \

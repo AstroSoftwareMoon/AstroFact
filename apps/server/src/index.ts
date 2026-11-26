@@ -1,4 +1,10 @@
 import { crearServidor, leerCa } from "./app";
+import { restaurar } from "./restaurar";
+
+if (process.argv[2] === "restaurar") {
+  try { await restaurar(process.argv[3] ?? "", process.env.ASTROFACT_DATA_DIR ?? "./datos", process.env.ASTROFACT_COPIA_PASSWORD); process.exit(0); }
+  catch (e) { console.error("✗", (e as Error).message); process.exit(1); }
+}
 
 const app = await crearServidor({
   version: process.env.ASTROFACT_VERSION ?? "dev",

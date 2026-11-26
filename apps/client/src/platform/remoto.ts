@@ -68,6 +68,12 @@ export class ClienteServidor {
     const r = await this.api<{ resultado: unknown }>(`/api/rpc/${metodo}`, { method: "POST", json: { args: serializar(args), recordar } });
     return revivir(r.resultado);
   }
+  /** Copia de seguridad cifrada (.astro) de todo el servidor (solo propietario). */
+  async copia(password: string): Promise<Uint8Array> {
+    const r = await fetch(`${this.base}/api/copia`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.token}` }, body: JSON.stringify({ password }) });
+    if (!r.ok) { const e = await r.json().catch(() => ({ error: `Error ${r.status}` })); throw new ErrorServidor(e.error ?? `Error ${r.status}`, r.status); }
+    return new Uint8Array(await r.arrayBuffer());
+  }
   /** Descarga la réplica si ha cambiado (304 si no). */
   async sincronizar(rev: string | null): Promise<{ bytes?: Uint8Array; rev: string; desbloqueado: Record<string, boolean> }> {
     const r = await fetch(`${this.base}/api/sincronizar${rev ? `?rev=${rev}` : ""}`, { headers: { Authorization: `Bearer ${this.token}` }, cache: "no-store" });
