@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "@astrofact/fiscal-core": "workspace:*",
-    "sql.js": "^1.13.0"
+    "sql.js": "^1.13.0",
+    "@noble/hashes": "^1.8.0"
   },
   "devDependencies": {
     "@types/sql.js": "^1.4.9"

@@ -15,6 +15,7 @@ utilizadas, su versión y su huella SHA-256 en el momento de la descarga (**22/1
 | Real Decreto 1007/2023, de 5 de diciembre — Reglamento de requisitos de los sistemas informáticos de facturación (RRSIF) | Texto consolidado, última modificación 03/12/2025 | https://www.boe.es/buscar/act.php?id=BOE-A-2023-24840 |
 | Orden HAC/1177/2024, de 17 de octubre — especificaciones técnicas, funcionales y de contenido | Texto consolidado, sin modificaciones | https://www.boe.es/buscar/act.php?id=BOE-A-2024-22138 |
 | Real Decreto 1619/2012 — Reglamento de obligaciones de facturación | (referencia) | https://www.boe.es/buscar/act.php?id=BOE-A-2012-14696 |
+| Real Decreto 439/2007 — Reglamento del IRPF (arts. 30.2.ª y 110: pago fraccionado, modelo 130) | Texto consolidado, última modificación 25/11/2026 · SHA-256 `0df90a92c256…` | https://www.boe.es/buscar/act.php?id=BOE-A-2007-6820 |
 
 **Fechas de obligatoriedad** (Disposición final cuarta del RD 1007/2023 consolidado):
 contribuyentes del Impuesto sobre Sociedades antes del **1/1/2027**; resto de obligados antes del
@@ -59,6 +60,10 @@ para poder validar sin red en CI. Los hashes de `SHA256SUMS` son los de los fich
 Del WSDL oficial: pruebas `https://prewww1.aeat.es/wlpl/TIKE-CONT/ws/SistemaFacturacion/VerifactuSOAP`
 (certificado de sello: `prewww10`); producción `https://www1.agenciatributaria.gob.es/...` (`www10`).
 **En desarrollo solo se usa el entorno de pruebas y nunca datos reales.**
+
+## Facturae
+
+Ver [`facturae/README.md`](facturae/README.md) (esquema 3.2.2 y política de firma v3.1).
 
 ## Puntos abiertos (TODO — pendiente de confirmar, no se ha inventado nada)
 

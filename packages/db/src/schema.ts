@@ -108,6 +108,43 @@ CREATE TABLE envio_aeat (
   num_registros INTEGER NOT NULL, csv TEXT, tiempo_espera INTEGER, error TEXT, peticion_xml TEXT, respuesta_xml TEXT
 );
 `},
+  { version: 3, nombre: "gestión comercial: gastos, documentos, recurrentes, cobros, conciliación", sql: `
+CREATE TABLE gasto (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id), proveedor_id INTEGER REFERENCES tercero(id),
+  proveedor_nombre TEXT NOT NULL, proveedor_nif TEXT, fecha TEXT NOT NULL, numero TEXT, concepto TEXT NOT NULL, categoria TEXT NOT NULL DEFAULT 'otros',
+  desglose_json TEXT NOT NULL, base_total TEXT NOT NULL, cuota_total TEXT NOT NULL, retencion TEXT NOT NULL DEFAULT '0.00', total TEXT NOT NULL,
+  pct_deducible TEXT NOT NULL DEFAULT '100', inversion_sujeto_pasivo INTEGER NOT NULL DEFAULT 0,
+  estado_pago TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado_pago IN ('pendiente','pagado')), fecha_pago TEXT, vencimiento TEXT, notas TEXT,
+  creado_en TEXT NOT NULL, actualizado_en TEXT NOT NULL
+);
+CREATE INDEX ix_gasto_fecha ON gasto(obligado_id, fecha);
+CREATE TABLE adjunto (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id), entidad TEXT NOT NULL, entidad_id INTEGER NOT NULL,
+  nombre TEXT NOT NULL, mime TEXT NOT NULL, tamano INTEGER NOT NULL, sha256 TEXT NOT NULL, datos BLOB NOT NULL, creado_en TEXT NOT NULL
+);
+CREATE INDEX ix_adjunto ON adjunto(entidad, entidad_id);
+CREATE TABLE documento (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id),
+  clase TEXT NOT NULL CHECK (clase IN ('presupuesto','albaran','borrador')), numero TEXT NOT NULL, fecha TEXT NOT NULL, validez TEXT,
+  tercero_id INTEGER REFERENCES tercero(id), estado TEXT NOT NULL DEFAULT 'abierto' CHECK (estado IN ('abierto','enviado','aceptado','rechazado','facturado','anulado')),
+  borrador_json TEXT NOT NULL, total TEXT NOT NULL, factura_id INTEGER REFERENCES factura(id), origen_id INTEGER REFERENCES documento(id),
+  recurrencia_id INTEGER, notas TEXT, creado_en TEXT NOT NULL, actualizado_en TEXT NOT NULL, UNIQUE (obligado_id, clase, numero)
+);
+CREATE TABLE recurrencia (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id), nombre TEXT NOT NULL, serie_id INTEGER NOT NULL REFERENCES serie(id),
+  borrador_json TEXT NOT NULL, periodicidad TEXT NOT NULL CHECK (periodicidad IN ('mensual','trimestral','semestral','anual')),
+  proxima TEXT NOT NULL, hasta TEXT, auto_emitir INTEGER NOT NULL DEFAULT 0, activa INTEGER NOT NULL DEFAULT 1, ultima_factura_id INTEGER, creado_en TEXT NOT NULL
+);
+CREATE TABLE cobro (
+  id INTEGER PRIMARY KEY, factura_id INTEGER NOT NULL REFERENCES factura(id), fecha TEXT NOT NULL, importe TEXT NOT NULL, medio TEXT,
+  nota TEXT, movimiento_id INTEGER, creado_en TEXT NOT NULL
+);
+CREATE TABLE recordatorio (id INTEGER PRIMARY KEY, factura_id INTEGER NOT NULL REFERENCES factura(id), fecha TEXT NOT NULL, canal TEXT NOT NULL, nota TEXT);
+CREATE TABLE movimiento (
+  id INTEGER PRIMARY KEY, obligado_id INTEGER NOT NULL REFERENCES obligado(id), fecha TEXT NOT NULL, concepto TEXT NOT NULL, importe TEXT NOT NULL,
+  huella TEXT NOT NULL, cobro_id INTEGER, gasto_id INTEGER, creado_en TEXT NOT NULL, UNIQUE (obligado_id, huella)
+);
+`},
 ];
 
 export function migrar(db: SqlDriver, ahora = () => new Date()): number[] {

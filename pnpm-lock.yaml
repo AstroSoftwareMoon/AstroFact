@@ -161,6 +161,9 @@ importers:
       '@astrofact/fiscal-core':
         specifier: workspace:*
         version: link:../fiscal-core
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       sql.js:
         specifier: ^1.13.0
         version: 1.17.0
@@ -202,6 +205,12 @@ importers:
       '@types/qrcode':
         specifier: ^1.5.5
         version: 1.5.6
+
+  packages/informes:
+    dependencies:
+      '@astrofact/fiscal-core':
+        specifier: workspace:*
+        version: link:../fiscal-core
 
   packages/pdf:
     dependencies:
