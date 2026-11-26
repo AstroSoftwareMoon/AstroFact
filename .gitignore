@@ -10,3 +10,4 @@ coverage/
 !packages/fiscal-core/test/fixtures/*.p12
 target/
 .turbo/
+compilacion/
